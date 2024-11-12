@@ -18,6 +18,8 @@ OUTPUT_FILE = 'output_temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
 
 def rename_download(new_file_name):
+    if not os.path.exists("./download"): 
+        os.makedirs("./download") 
     new_file_path = os.path.join("./download", new_file_name)
     os.rename(OUTPUT_FILE, new_file_path)
 

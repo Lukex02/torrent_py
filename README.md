@@ -1,6 +1,6 @@
 # Assignment 1 - Mạng Máy Tính
 
-SIMPLE TORRENT APPLICATION sử dụng Python
+## SIMPLE TORRENT APPLICATION sử dụng Python
 
 Có thể sử dụng cho cả Window và Linux
 

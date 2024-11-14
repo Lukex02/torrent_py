@@ -28,14 +28,14 @@ Chức năng không sử dụng được:
 
 ### Cài đặt thư viện trước khi chạy
 
-'pip install -r requirement.txt'
+`pip install -r requirement.txt`
 
 ### Cách chạy
 
 Đầu tiên có thể chạy:
 
-'python main.py help'
+`python main.py help`
 hoặc:
-'python3 main.py help'
+`python3 main.py help`
 
 để xem những lệnh có thể chạy và những thông tin cần thiết

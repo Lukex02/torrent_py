@@ -1,4 +1,5 @@
 import struct
+import urllib.parse
 
 def parse_handshake_response(response):
     # Protocal name (1 byte)
@@ -61,3 +62,17 @@ def parse_piece(length, data):
     piece_data = data[8:8+length]
 
     return recv_piece_length, piece_begin_offset, piece_data
+
+def parse_magnet(magnet_link):
+    # Phân tích URL
+    parsed_url = urllib.parse.urlparse(magnet_link)
+    
+    # Lấy các tham số từ query
+    params = urllib.parse.parse_qs(parsed_url.query)
+    
+    # Extract info_hash, name, và tracker
+    info_hash = params['xt'][0].split(':')[2]  # info_hash
+    name = params.get('dn', [None])[0]  # tên file (nếu có)
+    trackers = params.get('tr', [])  # danh sách tracker (nếu có)
+
+    return info_hash, name, trackers

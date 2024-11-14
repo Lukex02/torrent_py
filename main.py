@@ -9,10 +9,12 @@ import sys
 import time
 import os
 
-import handshake
+import makeTorrent
 import peer
 import message
 import piece
+import parse
+import seed
 
 OUTPUT_FILE = 'output_temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
@@ -28,12 +30,13 @@ class TorrentClient:
         self.torrent_path = torrent_file
         self.torrent_data = self.load_torrent_file(torrent_file)
         self.info_hash = self.calculate_info_hash()
-        self.peer_id = self.generate_peer_id()
         self.tracker_url = self.torrent_data[b'announce'].decode()
+        self.name = self.torrent_data[b'info'][b'name'].decode('utf-8')
         self.file_length = self.calculate_file_size()
         self.piece_length = self.calculate_piece_size()
         self.pieces = self.calculate_pieces()
         self.num_pieces = piece.get_num_pieces(self.torrent_data[b'info'])
+        self.peer_id = self.generate_peer_id()
     
     def load_torrent_file(self, torrent_file):
         with open(torrent_file, 'rb') as f:
@@ -60,25 +63,25 @@ class TorrentClient:
         return pieces_hash_list
     
     def generate_peer_id(self):
-        return b'-PC0001-' + ''.join([str(random.randint(0, 9)) for _ in range(12)]).encode()
+        return b'-tP1001-' + ''.join([str(random.randint(0, 9)) for _ in range(12)]).encode()
 
-    def connect_to_tracker(self):
+    def connect_to_tracker(self, event, uploaded, downloaded, left):
         params = {
             'info_hash': self.info_hash,
             'peer_id': self.peer_id,
             'port': 6881,
-            'uploaded': 0,
-            'downloaded': 0,
-            'left': self.torrent_data[b'info'][b'length'],
-            # 'compact': 1,
-            'event': 'started'
+            'uploaded': uploaded,
+            'downloaded': downloaded,
+            'left': left,
+            'compact': 1,
+            'event': event
         }
         url = f"{self.tracker_url}?{urllib.parse.urlencode(params)}"
         response = requests.get(url)
         if response.status_code != 200:
             print("Failed to connect to tracker")
             return None
-
+        # print(bencodepy.decode(response.content))
         return bencodepy.decode(response.content)
     
     def get_peers(self, tracker_response):
@@ -87,7 +90,7 @@ class TorrentClient:
         return [(socket.inet_ntoa(peer[:4]), struct.unpack('!H', peer[4:])[0]) for peer in peers]
 
     def download(self):
-        tracker_response = self.connect_to_tracker()
+        tracker_response = self.connect_to_tracker('started', 0, 0, self.file_length)
         if tracker_response is None:
             return
         
@@ -99,17 +102,19 @@ class TorrentClient:
         for ip, port in peers:
             print(f"Connecting to peer {ip}:{port}...")
         
-        # What it should be, but...
-        # peer.connect_to_peer(ip, port)
-
+            # What it should be, but...
+            # peer.connect_to_peer(ip, port)
         # It is what it is, fuck the tracker's response peer
         defIp = "192.168.31.74"
-        defPort = 48756
+        # defPort = 48756
+        defPort = 53049
+        # defIp = "0.0.0.0"
+        # defPort = 49053
         print(f"Connect Hard.......")
 
         sock = peer.connect_to_peer(defIp, defPort)
 
-        _, bitfield_response, unchoke_response = handshake.handshake(sock, self.info_hash, self.peer_id)
+        _, bitfield_response, unchoke_response = message.send_handshake(sock, self.info_hash, self.peer_id)
 
         # if unchoke_response is None:
         # Send Interested message
@@ -125,6 +130,7 @@ class TorrentClient:
         # piece_data = b''
         for piece_index in range(len(bitfield_response["pieces"])):
             # piece_data = bytearray(self.file_length)
+            # for begin in (0, self.piece_length, BLOCK_SIZE)
             remain_piece = self.file_length - downloaded
             
             print("Downloaded:", downloaded)
@@ -143,11 +149,8 @@ class TorrentClient:
             recv_piece_length, recv_piece_begin_offset, block = piece.wait_for_pieces(sock, requested_size)
             
             print("Write from", downloaded + recv_piece_begin_offset, "to", downloaded + recv_piece_begin_offset + recv_piece_length)
-            # piece_data[downloaded + recv_piece_begin_offset:downloaded + recv_piece_begin_offset + recv_piece_length] = block
-            # print("Hash block:", hashlib.sha1(block).digest())
-            # piece_data += block
             downloaded += requested_size
-            # print("Done get piece (in hex):", piece_data.hex())
+            # print("Done get piece (in hex):", block.hex())
             
             # Xác minh mảnh và ghi vào tệp nếu hợp lệ
             if piece.verify_piece(block, self.pieces[piece_index]):
@@ -157,12 +160,78 @@ class TorrentClient:
             else:
                 print(f"Piece {piece_index} failed hash check. Please redownload")
 
+        self.connect_to_tracker('completed', 0, downloaded, 0)
         sock.close()
-        rename_download(self.torrent_data[b'info'][b'name'].decode('utf-8'))
-        print("Download completed!")
+        rename_download(self.name)
+    
+    def start_seeding_server(self, port=49053):
+        # Tạo socket server
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        server_socket.bind(("", port))
+        server_socket.listen(5)  # Lắng nghe tối đa 5 kết nối
+        
+        print(f"Seeding server đang lắng nghe trên cổng {port}...")
+
+        while True:
+            # Chấp nhận kết nối từ peer
+            peer_socket, peer_address = server_socket.accept()
+            print(f"Peer đã kết nối từ địa chỉ {peer_address}")
+            return peer_socket
+
+    def upload(self):
+        tracker_response = self.connect_to_tracker('started', 0, 0, 0)
+        if tracker_response is None:
+            return
+        print("Current seeding...")
+        socket = self.start_seeding_server()
+        
+        # Nhận được gì đó từ peer mới kết nối thì trả về
+        response = socket.recv(1024)
+        print(response)
+        return
 
 if __name__ == '__main__':
-    client = TorrentClient("sample_2.torrent")
-    # client = TorrentClient(sys.argv[1])
-    client.download()
-    print("Closing download...\n")
+    # python main.py download <torrent_path>
+    if sys.argv[1] == "download":
+        # client = TorrentClient("sample_2.torrent")
+        client = TorrentClient(sys.argv[2])
+        client.download()
+        print("Download completed!")
+
+    # python main.py upload <torrent_path> 
+    elif sys.argv[1] == "upload":
+        client = TorrentClient(sys.argv[2])
+        client.upload()
+        print("Upload completed!")
+
+    # python main.py maketor <input_path> <torrent_name> <optional|tracker_url>
+    elif sys.argv[1] == "maketor":
+        if len(sys.argv) < 4:
+            raise Exception("Missing argumnent for maketor")
+        if os.path.exists(sys.argv[2]):
+            input_path = sys.argv[2]
+        else:
+            raise Exception("Input path is not valid!")
+        torrent_name = sys.argv[3]
+        tracker_url = "https://tr.zukizuki.org:443/announce"
+        if len(sys.argv) > 4:
+            for i in len(sys.argv) - 5:
+                tracker_url[i] = sys.argv[4]
+
+        if not os.path.exists("./torrent"): 
+            os.makedirs("./torrent") 
+        torrent_path = os.path.join("./torrent", torrent_name)
+
+        makeTorrent.create_torrent(input_path, tracker_url, torrent_path)
+        print("Make torrent completed!")
+
+    # python main.py help
+    elif sys.argv[1] == "help":
+        print("Available commands:")
+        print("Download: python main.py download <torrent_path>")
+        print("Upload: python main.py upload <torrent_path>")
+        print("Make torrent: python main.py maketor <input_path> <torrent_name> <optional|tracker_url>")
+
+
+    

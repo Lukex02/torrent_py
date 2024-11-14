@@ -1,4 +1,11 @@
 import struct
+import parse
+
+def create_handshake_message(info_hash, peer_id):
+    pstr = b"BitTorrent protocol"
+    pstrlen = len(pstr)
+    reserved = b'\x00' * 8  # 8 byte reserved
+    handshake_message = struct.pack('B', pstrlen) + pstr + reserved + info_hash + peer_id
 
 def create_choke_message():
     length_prefix = struct.pack(">I", 1)
@@ -48,6 +55,20 @@ def create_cancel_message(index, begin, length):
     message_id = struct.pack(">B", 8)
     payload = struct.pack(">III", index, begin, length)
     return length_prefix + message_id + payload
+
+def send_handshake(sock, info_hash, peer_id):
+    # Gửi handshake
+    sock.send(create_handshake_message(info_hash, peer_id))
+
+    # Nhận phản hồi handshake
+    response = sock.recv(128)
+    print("Received handshake response!")
+    # print("Received handshake response:", response)
+    
+    return (parse.parse_handshake_response(response[0:68]),
+            parse.parse_bitfield(response[68:74]),
+            parse.parse_unchoke(response[74:79]))
+
 
 def send_interested(sock):
     interested_msg = create_interested_message()

@@ -1,3 +1,5 @@
+# DON'T USE THIS, NOT WORK ON WINDOW, ALSO NOT TESTED YET
+
 import libtorrent as lt
 import time
 

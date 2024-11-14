@@ -6,6 +6,7 @@ def create_handshake_message(info_hash, peer_id):
     pstrlen = len(pstr)
     reserved = b'\x00' * 8  # 8 byte reserved
     handshake_message = struct.pack('B', pstrlen) + pstr + reserved + info_hash + peer_id
+    return handshake_message
 
 def create_choke_message():
     length_prefix = struct.pack(">I", 1)
@@ -66,8 +67,7 @@ def send_handshake(sock, info_hash, peer_id):
     # print("Received handshake response:", response)
     
     return (parse.parse_handshake_response(response[0:68]),
-            parse.parse_bitfield(response[68:74]),
-            parse.parse_unchoke(response[74:79]))
+            parse.parse_bitfield(response[68:74]))
 
 
 def send_interested(sock):
@@ -78,4 +78,21 @@ def send_interested(sock):
 def request_piece(sock, index, begin, length):
     request_msg = create_request_message(index, begin, length)  # Độ dài 13 byte, message ID 6
     sock.send(request_msg)
+    return sock
+
+def send_unchoke(sock):
+    unchoke_msg = create_unchoke_message()
+    sock.send(unchoke_msg)
+    return sock
+
+def send_bitfield(sock, bitfield):
+    bitfield_msg = create_bitfield_message(bitfield)
+    sock.send(bitfield_msg)
+    return sock
+
+def send_handshake_and_bitfield(sock, info_hash, peer_id, bitfield):
+    handshake_msg = create_handshake_message(info_hash, peer_id)
+    bitfield_msg = create_bitfield_message(bitfield)
+    
+    sock.sendall(handshake_msg + bitfield_msg)
     return sock

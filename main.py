@@ -13,7 +13,7 @@ import makeTorrent
 import peer
 import message
 import piece
-import parse
+# import parse
 import seed
 
 OUTPUT_FILE = 'output_temp'         # Tên tệp đầu ra sau khi tải xong
@@ -171,25 +171,58 @@ class TorrentClient:
         server_socket.bind(("", port))
         server_socket.listen(5)  # Lắng nghe tối đa 5 kết nối
         
-        print(f"Seeding server đang lắng nghe trên cổng {port}...")
+        print(f"Seeding server is listening on port: {port}...")
 
         while True:
             # Chấp nhận kết nối từ peer
             peer_socket, peer_address = server_socket.accept()
-            print(f"Peer đã kết nối từ địa chỉ {peer_address}")
+            print(f"Peer has connected from: {peer_address}")
+            # print(peer_socket)
             return peer_socket
 
-    def upload(self):
+    def upload(self, input_file_path):
+        # Tạo bitfield từ file có sẵn (Vì là seed nên coi như có tất cả mọi mảnh)
+        with open(input_file_path, "rb") as file:
+            input_file_data = file.read()
+        bitfield_data = seed.generate_bitfield(input_file_data, self.piece_length, self.num_pieces)
+        
         tracker_response = self.connect_to_tracker('started', 0, 0, 0)
         if tracker_response is None:
             return
-        print("Current seeding...")
-        socket = self.start_seeding_server()
         
-        # Nhận được gì đó từ peer mới kết nối thì trả về
-        response = socket.recv(1024)
-        print(response)
-        return
+        socket = self.start_seeding_server()
+        if socket is None:
+            raise Exception("Something failed, try again...")
+        
+        print("Current seeding...")
+        
+        # user_input = input("Type 'exit' to stop seeding...")
+        # if user_input.lower() == 'exit':
+        #     print("Exiting...")
+        # else: 
+        
+        # Sau khi kết nối được với peer khác, đợi handshake
+        handshake_response = seed.wait_for_handshake(socket)
+        if seed.validate_handshake(handshake_response, self.info_hash):
+            print("Handshake valid. Sending handshake response.")
+            # Gửi về handshake + bitfield
+            socket = message.send_handshake_and_bitfield(socket, self.info_hash, self.peer_id, bitfield_data)
+        
+        # Đợi peer gửi interested sau đó gửi unchoke để peer bắt đầu request
+        socket = seed.wait_for_interested(socket)
+        socket = message.send_unchoke(socket)
+        
+        while True:
+            # Đợi request
+            piece_index, offset, length = seed.wait_for_request(socket)
+        
+            # Gửi từng piece dựa trên request
+            piece_begin = piece_index * self.piece_length + offset
+            piece_end = piece_begin + length
+            seed.send_piece(socket, piece_index, offset, input_file_data[piece_begin:piece_end])
+    
+        socket.close()
+        return  # Ngừng seed
 
 if __name__ == '__main__':
     # python main.py download <torrent_path>
@@ -199,10 +232,12 @@ if __name__ == '__main__':
         client.download()
         print("Download completed!")
 
-    # python main.py upload <torrent_path> 
+    # python main.py upload <torrent_path> <input_file_path>
     elif sys.argv[1] == "upload":
-        client = TorrentClient(sys.argv[2])
-        client.upload()
+        torrent_path = sys.argv[2]
+        input_file_path = sys.argv[3]
+        client = TorrentClient(torrent_path)
+        client.upload(input_file_path)
         print("Upload completed!")
 
     # python main.py maketor <input_path> <torrent_name> <optional|tracker_url>
@@ -232,6 +267,3 @@ if __name__ == '__main__':
         print("Download: python main.py download <torrent_path>")
         print("Upload: python main.py upload <torrent_path>")
         print("Make torrent: python main.py maketor <input_path> <torrent_name> <optional|tracker_url>")
-
-
-    

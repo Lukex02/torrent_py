@@ -55,6 +55,11 @@ def parse_unchoke(message):
         "type": "unchoke"
     }
 
+def parse_request(message):
+    piece_index, offset, length = struct.unpack(">III", message[:13])
+    return piece_index, offset, length
+    
+    
 def parse_piece(length, data):
     recv_piece_length = length - 9
     piece_index = data[0:4]

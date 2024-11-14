@@ -228,10 +228,20 @@ class TorrentClient:
         return  # Ngừng seed
 
 if __name__ == '__main__':
+    # Create mandatory directory
+    if not os.path.exists("./torrent"): 
+        os.makedirs("./torrent")
+    if not os.path.exists("./seeds"): 
+        os.makedirs("./seeds")
+    if not os.path.exists("./download"): 
+        os.makedirs("./download")
+    
     # python main.py download <torrent_path>
     if sys.argv[1] == "download":
         # client = TorrentClient("sample_2.torrent")
-        client = TorrentClient(sys.argv[2])
+        torrent_name = sys.argv[2]
+        torrent_file = os.path.join("./torrent", torrent_name)
+        client = TorrentClient(torrent_file)
         client.download()
         print("Download completed!")
 
@@ -247,18 +257,16 @@ if __name__ == '__main__':
     elif sys.argv[1] == "maketor":
         if len(sys.argv) < 4:
             raise Exception("Missing argumnent for maketor")
-        if os.path.exists(sys.argv[2]):
-            input_path = sys.argv[2]
-        else:
-            raise Exception("Input path is not valid!")
+
+        input_path = sys.argv[2]
         torrent_name = sys.argv[3]
         tracker_url = "https://tr.zukizuki.org:443/announce"
-        if len(sys.argv) > 4:
+        if len(sys.argv) == 5:
+            tracker_url = sys.argv[4]
+        if len(sys.argv) > 5:
             for i in len(sys.argv) - 5:
                 tracker_url[i] = sys.argv[4]
-
-        if not os.path.exists("./torrent"): 
-            os.makedirs("./torrent") 
+        
         torrent_path = os.path.join("./torrent", torrent_name)
 
         makeTorrent.create_torrent(input_path, tracker_url, torrent_path)
@@ -267,6 +275,6 @@ if __name__ == '__main__':
     # python main.py help
     elif sys.argv[1] == "help":
         print("Available commands:")
-        print("Download: python main.py download <torrent_path>")
-        print("Upload: python main.py upload <torrent_path>")
-        print("Make torrent: python main.py maketor <input_path> <torrent_name> <optional|tracker_url>")
+        print("Download: python main.py download <torrent_name stored in /torrent>.torrent")
+        print("Upload: python main.py upload <torrent_name stored in /torrent>.torrent <input_file stored in /seeds>")
+        print("Make torrent: python main.py maketor <input_file stored in /seeds> <torrent_name> <optional|tracker_url>")

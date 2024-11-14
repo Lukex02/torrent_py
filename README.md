@@ -26,7 +26,7 @@ Chức năng chưa thử nghiệm (khả năng cao là còn thiếu)
 
 Chức năng không sử dụng được:
 
-- DHT (sử dụng libtorrent không dùng cho window được, và cũng không chưa tìm được peer)
+- DHT (sử dụng libtorrent không dùng cho window được, và cũng không/chưa tìm được peer)
 
 ## Cài đặt thư viện trước khi chạy
 

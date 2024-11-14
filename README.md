@@ -2,6 +2,8 @@
 
 SIMPLE TORRENT APPLICATION sử dụng Python
 
+Có thể sử dụng cho cả Window và Linux
+
 Chức năng đã hiện thực có thể dùng được:
 
 - Tạo 1 file torrent
@@ -35,7 +37,9 @@ Chức năng không sử dụng được:
 Đầu tiên có thể chạy:
 
 `python main.py help`
+
 hoặc:
+
 `python3 main.py help`
 
 để xem những lệnh có thể chạy và những thông tin cần thiết

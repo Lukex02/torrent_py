@@ -1,8 +1,8 @@
 # Assignment 1 - Mạng Máy Tính
 
-## SIMPLE TORRENT APPLICATION sử dụng Python
+### SIMPLE TORRENT APPLICATION sử dụng Python
 
-Có thể sử dụng cho cả Window và Linux
+#### Có thể sử dụng cho cả Window và Linux
 
 Chức năng đã hiện thực có thể dùng được:
 
@@ -28,11 +28,11 @@ Chức năng không sử dụng được:
 
 - DHT (sử dụng libtorrent không dùng cho window được, và cũng không chưa tìm được peer)
 
-### Cài đặt thư viện trước khi chạy
+## Cài đặt thư viện trước khi chạy
 
 `pip install -r requirement.txt`
 
-### Cách chạy
+## Cách chạy
 
 Đầu tiên có thể chạy:
 

@@ -1,4 +1,3 @@
-torrentool>=0.1.1
-bencodepy>=2.0.0
-libtorrent>=2.0.9
+torrentool>=1.2.0
+bencodepy>=0.9.5
 requests>=2.31.0

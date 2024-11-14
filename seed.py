@@ -15,6 +15,9 @@ def wait_for_interested(socket):
     return socket
 
 def wait_for_request(socket):
+    if socket is None:
+        return None, None, None
+    
     length, message_id, response = peer.receive_message(socket)
     # print("Request id: ", message_id)
     if message_id == 6:  # Interested ID = 6

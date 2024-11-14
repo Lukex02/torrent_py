@@ -13,7 +13,6 @@ import makeTorrent
 import peer
 import message
 import piece
-# import parse
 import seed
 
 OUTPUT_FILE = 'output_temp'         # Tên tệp đầu ra sau khi tải xong
@@ -114,7 +113,7 @@ class TorrentClient:
 
         sock = peer.connect_to_peer(defIp, defPort)
 
-        _, bitfield_response, unchoke_response = message.send_handshake(sock, self.info_hash, self.peer_id)
+        _, bitfield_response = message.send_handshake(sock, self.info_hash, self.peer_id)
 
         # if unchoke_response is None:
         # Send Interested message
@@ -122,6 +121,7 @@ class TorrentClient:
 
         # Wait for Unchoke
         peer.wait_for_unchoke(sock)
+        time.sleep(1)
 
         with open(OUTPUT_FILE, 'wb') as f:
             f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
@@ -158,7 +158,7 @@ class TorrentClient:
                 piece.write_piece_to_file(OUTPUT_FILE, piece_index, block, self.piece_length)
                 print(f"Write to temporary file completed!")
             else:
-                print(f"Piece {piece_index} failed hash check. Please redownload")
+                raise Exception(f"Piece {piece_index} failed hash check. Please redownload")
 
         self.connect_to_tracker('completed', 0, downloaded, 0)
         sock.close()
@@ -215,7 +215,9 @@ class TorrentClient:
         while True:
             # Đợi request
             piece_index, offset, length = seed.wait_for_request(socket)
-        
+            if (piece_index, offset, length) is None:
+                print("Peer has disconnected...")
+                break
             # Gửi từng piece dựa trên request
             piece_begin = piece_index * self.piece_length + offset
             piece_end = piece_begin + length

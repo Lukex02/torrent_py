@@ -14,10 +14,7 @@ def wait_for_interested(socket):
         print("Peer is interested!")
     return socket
 
-def wait_for_request(socket):
-    if socket is None:
-        return None, None, None
-    
+def wait_for_request(socket):    
     length, message_id, response = peer.receive_message(socket)
     # print("Request id: ", message_id)
     if message_id == 6:  # Interested ID = 6
@@ -25,6 +22,8 @@ def wait_for_request(socket):
         piece_index, offset, length = parse.parse_request(response)
         print(f"Piece requested index: {piece_index}, offset: {offset}, length: {length}")
         return piece_index, offset, length
+    else:
+        return None, None, None
 
 def validate_handshake(handshake, info_hash):
     if handshake[1:20] != b"BitTorrent protocol":

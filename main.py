@@ -90,8 +90,8 @@ class TorrentClient:
 
     def download(self):
         tracker_response = self.connect_to_tracker('started', 0, 0, self.file_length)
-        if tracker_response is None:
-            return
+        # if tracker_response is None:
+        #     return
         
         # print(tracker_response)
         peers = self.get_peers(tracker_response)
@@ -187,8 +187,8 @@ class TorrentClient:
         bitfield_data = seed.generate_bitfield(input_file_data, self.piece_length, self.num_pieces)
         
         tracker_response = self.connect_to_tracker('started', 0, 0, 0)
-        if tracker_response is None:
-            return
+        # if tracker_response is None:
+        #     return
         
         socket = self.start_seeding_server()
         if socket is None:
@@ -215,13 +215,14 @@ class TorrentClient:
         while True:
             # Đợi request
             piece_index, offset, length = seed.wait_for_request(socket)
-            if (piece_index, offset, length) is None:
+            if (piece_index, offset, length) == (None, None, None):
                 print("Peer has disconnected...")
                 break
-            # Gửi từng piece dựa trên request
-            piece_begin = piece_index * self.piece_length + offset
-            piece_end = piece_begin + length
-            seed.send_piece(socket, piece_index, offset, input_file_data[piece_begin:piece_end])
+            else:
+                # Gửi từng piece dựa trên request
+                piece_begin = piece_index * self.piece_length + offset
+                piece_end = piece_begin + length
+                seed.send_piece(socket, piece_index, offset, input_file_data[piece_begin:piece_end])
     
         socket.close()
         return  # Ngừng seed

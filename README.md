@@ -11,6 +11,7 @@ Chức năng đã hiện thực có thể dùng được:
 - Kết nối với peer
 - Seed/Chia sẻ 1 file
 - Tải về 1 file
+- Kết nối với peer qua mạng LAN
 
 Chức năng còn thiếu:
 
@@ -19,10 +20,21 @@ Chức năng còn thiếu:
 
 Chức năng chưa thử nghiệm (khả năng cao là còn thiếu)
 
-- Tải 1 thư mục nhiều file
+- Kết nối peer qua mạng khác nhau
+- Tải 1 thư mục nhiều file (tạo torrent từ cả thư mục)
 - Multithread kết nối nhiều peer cùng lúc
 - Tải từ nhiều peer
-- Seed cho nhiều peer
+- Seed cho nhiều peer (thật ra code cơ chế seed hiện tại là trên lý thuyết có thể thực hiện được vì đang ở vòng `while True` request rồi gửi piece)
+#### Idea của nhiều peer:
++ Tạo multi thread
++ Sync các thread
++ Có thể cần dùng máy ảo (virtual machine) để test > 2 peer
++ Thêm cái gì đó để lưu lịch sử đã tải (piece_index của piece đã download) để không phải request trùng
++ Có thể test tải multi thread cho cùng 1 peer (for testing purpose only)
+*#### Chức năng có thể không cần thiết*
++ *Sau khi tải về có thể `send message have` để báo mình có mảnh nào đó*
++ *Nếu có `send message have` thì cần thêm `handle message have`*
++ *`Handle message have`: Có thể dùng cái `peer.receive_message()`*
 
 Chức năng không sử dụng được:
 
@@ -43,3 +55,9 @@ hoặc:
 `python3 main.py help`
 
 để xem những lệnh có thể chạy và những thông tin cần thiết
+
+## Reference
+
+Link Bittorrent spec, để biết các message gửi với nhau cần gì:
+
+https://wiki.theory.org/BitTorrentSpecification

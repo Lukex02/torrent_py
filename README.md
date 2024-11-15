@@ -31,7 +31,7 @@ Chức năng chưa thử nghiệm (khả năng cao là còn thiếu)
 + Có thể cần dùng máy ảo (virtual machine) để test > 2 peer
 + Thêm cái gì đó để lưu lịch sử đã tải (piece_index của piece đã download) để không phải request trùng
 + Có thể test tải multi thread cho cùng 1 peer (for testing purpose only)
-*#### Chức năng có thể không cần thiết*
+#### *Chức năng có thể không cần thiết*
 + *Sau khi tải về có thể `send message have` để báo mình có mảnh nào đó*
 + *Nếu có `send message have` thì cần thêm `handle message have`*
 + *`Handle message have`: Có thể dùng cái `peer.receive_message()`*

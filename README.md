@@ -56,6 +56,11 @@ hoặc:
 
 để xem những lệnh có thể chạy và những thông tin cần thiết
 
+## Quy tắc làm việc
+
+1. Clone repository ra, sync nó lên github desktop hay download zip gì đó về tự vọc trên máy local
+2. Submit thì tạo branch mới từ cái đống trên máy local, pull request, assign chủ repo làm reviewer
+
 ## Reference
 
 Link Bittorrent spec, để biết các message gửi với nhau cần gì:

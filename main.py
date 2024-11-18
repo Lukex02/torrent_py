@@ -30,12 +30,12 @@ class TorrentClient:
         self.torrent_data = self.load_torrent_file(torrent_file)
         self.info_hash = self.calculate_info_hash()
         self.tracker_url = self.torrent_data[b'announce'].decode()
-        self.name = self.torrent_data[b'info'][b'name'].decode('utf-8')
-        self.file_length = self.calculate_file_size()
+        self.name = self.calculate_name()
+        self.peer_id = self.generate_peer_id()
         self.piece_length = self.calculate_piece_size()
         self.pieces = self.calculate_pieces()
         self.num_pieces = piece.get_num_pieces(self.torrent_data[b'info'])
-        self.peer_id = self.generate_peer_id()
+        self.file_length = self.calculate_file_size()
     
     def load_torrent_file(self, torrent_file):
         with open(torrent_file, 'rb') as f:
@@ -47,7 +47,27 @@ class TorrentClient:
 
     def calculate_file_size(self):
         info = self.torrent_data[b'info']
-        return info[b'length']
+        if b'files' in info:
+            total_file_size = 0
+            for file in info[b'files']:
+                total_file_size += file[b'length']
+            return total_file_size 
+        else:
+            return info[b'length']
+    
+    def calculate_name(self):
+        # Đối với file trong folder list sẽ là [b'dir1', b'dir2', b'file'] (dir1/dir2/file)
+        info = self.torrent_data[b'info']
+        if b'files' in info:
+            folder_name = self.torrent_data[b'info'][b'name'].decode('utf-8')
+            name_list = [folder_name]
+            for file in info[b'files']:
+                # print(file[b'path'])
+                for dir in file[b'path']:
+                    name_list.append(dir.decode('utf-8'))
+            return name_list
+        else:
+            return self.torrent_data[b'info'][b'name'].decode('utf-8')
     
     def calculate_piece_size(self):
         info = self.torrent_data[b'info']
@@ -103,16 +123,16 @@ class TorrentClient:
         
             # What it should be, but...
             # peer.connect_to_peer(ip, port)
-        # It is what it is, fuck the tracker's response peer
-        defIp = "192.168.31.74"
+
+        defIp = "127.0.0.1"
+        # defIp = "172.19.0.2"
+        # defIp = "192.168.31.74"
         # defPort = 48756
-        defPort = 53049
-        # defIp = "0.0.0.0"
-        # defPort = 49053
-        print(f"Connect Hard.......")
+        defPort = 49053
+        print(f"Connect with fixed {defIp}:{defPort}.......")
 
         sock = peer.connect_to_peer(defIp, defPort)
-
+        # return
         _, bitfield_response = message.send_handshake(sock, self.info_hash, self.peer_id)
 
         # if unchoke_response is None:
@@ -171,7 +191,13 @@ class TorrentClient:
         server_socket.bind(("", port))
         server_socket.listen(5)  # Lắng nghe tối đa 5 kết nối
         
-        print(f"Seeding server is listening on port: {port}...")
+        # Lấy tên máy (hostname) của máy tính hiện tại
+        hostname = socket.gethostname()
+
+        # Lấy địa chỉ IP của máy tính
+        ip_address = socket.gethostbyname(hostname)
+        
+        print(f"Seeding server is listening on : {ip_address}:{port}...")
 
         while True:
             # Chấp nhận kết nối từ peer
@@ -195,11 +221,6 @@ class TorrentClient:
             raise Exception("Something failed, try again...")
         
         print("Current seeding...")
-        
-        # user_input = input("Type 'exit' to stop seeding...")
-        # if user_input.lower() == 'exit':
-        #     print("Exiting...")
-        # else: 
         
         # Sau khi kết nối được với peer khác, đợi handshake
         handshake_response = seed.wait_for_handshake(socket)
@@ -235,46 +256,54 @@ if __name__ == '__main__':
         os.makedirs("./seeds")
     if not os.path.exists("./download"): 
         os.makedirs("./download")
-    
-    # python main.py download <torrent_path>
-    if sys.argv[1] == "download":
-        # client = TorrentClient("sample_2.torrent")
-        torrent_name = sys.argv[2]
-        torrent_file = os.path.join("./torrent", torrent_name)
-        client = TorrentClient(torrent_file)
-        client.download()
-        print("Download completed!")
-
-    # python main.py upload <torrent_path> <input_file_path>
-    elif sys.argv[1] == "upload":
-        torrent_path = sys.argv[2]
-        input_file_path = sys.argv[3]
-        client = TorrentClient(torrent_path)
-        client.upload(input_file_path)
-        print("Upload completed!")
-
-    # python main.py maketor <input_path> <torrent_name> <optional|tracker_url>
-    elif sys.argv[1] == "maketor":
-        if len(sys.argv) < 4:
-            raise Exception("Missing argumnent for maketor")
-
-        input_path = sys.argv[2]
-        torrent_name = sys.argv[3]
-        tracker_url = "https://tr.zukizuki.org:443/announce"
-        if len(sys.argv) == 5:
-            tracker_url = sys.argv[4]
-        if len(sys.argv) > 5:
-            for i in len(sys.argv) - 5:
-                tracker_url[i] = sys.argv[4]
+    while True:
+        usr_inp = input('Enter your command ("help" to see all commands):')
+        if usr_inp.lower() == "exit":
+            break
+        arguments = usr_inp.split()
         
-        torrent_path = os.path.join("./torrent", torrent_name)
+        # python main.py download <torrent_path>
+        if arguments[0] == "download":
+            torrent_name = arguments[1]
+            torrent_file = os.path.join("./torrent", torrent_name)
+            client = TorrentClient(torrent_file)
+            client.download()
+            print("Download completed!")
 
-        makeTorrent.create_torrent(input_path, tracker_url, torrent_path)
-        print("Make torrent completed!")
+        # python main.py upload <torrent_path> <input_file_name in /seeds>
+        elif arguments[0] == "upload":
+            torrent_file = arguments[1]
+            input_file_name = arguments[2]
+            input_file_path = os.path.join("./seeds", input_file_name)
+            torrent_path = os.path.join("./torrent", torrent_file)
+            client = TorrentClient(torrent_path)
+            client.upload(input_file_path)
+            print("Upload completed!")
 
-    # python main.py help
-    elif sys.argv[1] == "help":
-        print("Available commands:")
-        print("Download: python main.py download <torrent_name stored in /torrent>.torrent")
-        print("Upload: python main.py upload <torrent_name stored in /torrent>.torrent <input_file stored in /seeds>")
-        print("Make torrent: python main.py maketor <input_file stored in /seeds> <torrent_name> <optional|tracker_url>")
+        # python main.py maketor <input_path> <torrent_name> <optional|tracker_url>
+        elif arguments[0] == "maketor":
+            if len(arguments) < 3:
+                raise Exception("Missing argumnent for maketor")
+
+            input_name = arguments[1]
+            input_path = os.path.join("./seeds", input_name)
+            torrent_name = arguments[2]
+            tracker_url = "https://tr.zukizuki.org:443/announce"
+            if len(arguments) == 4:
+                tracker_url = arguments[3]
+            if len(arguments) > 4:
+                for i in len(arguments) - 4:
+                    tracker_url[i] = arguments[len(arguments) - 1 + i]
+            
+            torrent_path = os.path.join("./torrent", torrent_name)
+
+            makeTorrent.create_torrent(input_path, tracker_url, torrent_path)
+            print("Make torrent completed!")
+
+        # python main.py help
+        # elif sys.argv[1] == "help":
+        elif arguments[0] == "help":
+            print("Available commands:")
+            print("Download: python main.py download <torrent_name stored in /torrent>.torrent")
+            print("Upload: python main.py upload <torrent_name stored in /torrent>.torrent <input_file_name stored in /seeds>")
+            print("Make torrent: python main.py maketor <input_file stored in /seeds> <torrent_name> <optional|tracker_url>")

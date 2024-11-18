@@ -5,15 +5,6 @@ import time
 import parse
 import struct
 
-# pieces = {}  # Dictionary để lưu từng mảnh
-# piece_index = 0  # Chỉ mục của mảnh
-
-# Giả sử 'data' là dữ liệu nhận được của block
-# if piece_index not in pieces:
-#     pieces[piece_index] = b''  # Khởi tạo mảnh rỗng
-# pieces[piece_index] += data  # Thêm block vào mảnh
-
-
 def get_num_pieces(info):
     # Lấy kích thước của mỗi mảnh
     piece_length = info[b'piece length']
@@ -36,7 +27,6 @@ def wait_for_pieces(sock, piece_size):
     while True:
         # Liên tục nhận message từ peer
         length, message_id, data = receive_data(sock, piece_size)
-        # length, message_id, data = peer.receive_message(sock)
 
         if message_id == 7:  # Piece's ID is 7
             print("Received Piece message!")
@@ -47,6 +37,8 @@ def wait_for_pieces(sock, piece_size):
 
 def verify_piece(piece_data, expected_hash):
     actual_hash = hashlib.sha1(piece_data).digest()
+    # print("Actual:", actual_hash)
+    # print("Expected:", expected_hash)
     return actual_hash == expected_hash
 
 def write_piece_to_file(filename, piece_index, piece_data, piece_length):
@@ -64,7 +56,6 @@ def receive_data(sock, piece_size):
         remaining = piece_size - len(data)
 
         # Nhận dữ liệu, tối đa là remaining bytes
-        # print("Sock recv...")
         chunk = sock.recv(min(remaining, 1024))  # Đọc tối đa 16KB mỗi lần
 
         # Nếu không còn dữ liệu (kết nối bị đóng), thoát
@@ -78,8 +69,6 @@ def receive_data(sock, piece_size):
     last_chunk = sock.recv(1024)
     data += last_chunk
 
-    # print("AAA------")
-    # print(data)
     length = struct.unpack('>I', data[:4])[0]
     message_id = struct.unpack('>B', data[4:5])[0]
 

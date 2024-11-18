@@ -15,7 +15,7 @@ import message
 import piece
 import seed
 
-OUTPUT_FILE = 'output_temp'         # Tên tệp đầu ra sau khi tải xong
+OUTPUT_FILE = 'output.temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
 
 def rename_download(new_file_name):
@@ -23,6 +23,63 @@ def rename_download(new_file_name):
         os.makedirs("./download") 
     new_file_path = os.path.join("./download", new_file_name)
     os.rename(OUTPUT_FILE, new_file_path)
+    
+def rename_download_folder(new_file_list, file_length_list):
+    with open(OUTPUT_FILE, 'rb') as f:
+        output_raw = f.read()
+    # print(new_file_list)
+    # print(file_length_list[3])
+    # return
+    root_path = "./download/" + new_file_list[0]
+    os.makedirs(root_path)
+    
+    path = root_path
+    index = 0
+    offset = 0
+    for dir in new_file_list[1:]:
+        path += "/" + dir
+        if '.' not in os.path.basename(dir):
+            print(f"Folder path: {path}")
+            if not os.path.exists(path): 
+                os.makedirs(path)
+        else:
+            with open(path, 'wb') as f:
+                f.truncate(file_length_list[index])
+            with open(path, 'wb') as f:
+                f.seek(0)  # Định vị trí ghi
+                f.write(output_raw[offset: offset + file_length_list[index]])  # Ghi mảnh vào tệp
+                print(f"Done writing file index: {index} - offset: {offset} - length: {file_length_list[index]} (bytes) at path: {path}")
+                offset += file_length_list[index]
+                path = root_path
+                index += 1
+
+def combine_files(file_list):
+    root_path = "./seeds/" + file_list[0]
+    path = root_path
+    data = b''
+    for dir in file_list[1:]:
+        path += "/" + dir
+        if '.' not in os.path.basename(dir):
+            print(f"Folder path: {path}")
+            if not os.path.exists(path): 
+                os.makedirs(path)
+        else:
+            print(f"Decode binary file {dir}...")
+            with open(path, 'rb') as f:
+                data += f.read()
+            path = root_path
+    return data
+    # with open(output_filename, 'wb') as output_file:
+    #     # Duyệt qua tất cả các file trong thư mục
+    #     for root, dirs, files in os.walk(folder_path):
+    #         for file in files:
+    #             file_path = os.path.join(root, file)
+    #             print(file_path)
+    #             with open(file_path, 'rb') as input_file:
+    #                 output_file.write(input_file.read())
+    #                 output_file.write(b"\n")  # Thêm một dòng trống giữa các file
+
+    # print(f"All files in {folder_path} has combined to {output_filename}")
 
 class TorrentClient:
     def __init__(self, torrent_file):
@@ -35,6 +92,7 @@ class TorrentClient:
         self.piece_length = self.calculate_piece_size()
         self.pieces = self.calculate_pieces()
         self.num_pieces = piece.get_num_pieces(self.torrent_data[b'info'])
+        self.length_list = []
         self.file_length = self.calculate_file_size()
     
     def load_torrent_file(self, torrent_file):
@@ -50,6 +108,7 @@ class TorrentClient:
         if b'files' in info:
             total_file_size = 0
             for file in info[b'files']:
+                self.length_list.append(file[b'length'])
                 total_file_size += file[b'length']
             return total_file_size 
         else:
@@ -62,7 +121,6 @@ class TorrentClient:
             folder_name = self.torrent_data[b'info'][b'name'].decode('utf-8')
             name_list = [folder_name]
             for file in info[b'files']:
-                # print(file[b'path'])
                 for dir in file[b'path']:
                     name_list.append(dir.decode('utf-8'))
             return name_list
@@ -109,6 +167,8 @@ class TorrentClient:
         return [(socket.inet_ntoa(peer[:4]), struct.unpack('!H', peer[4:])[0]) for peer in peers]
 
     def download(self):
+        # rename_download_folder(self.name, self.length_list)
+        # return
         tracker_response = self.connect_to_tracker('started', 0, 0, self.file_length)
         # if tracker_response is None:
         #     return
@@ -159,7 +219,7 @@ class TorrentClient:
                 print("Ask for remaining...")
                 requested_size = remain_piece
             else:
-                print("Ask for 16KB piece...")
+                print("Ask for 1 piece...")
                 requested_size = self.piece_length
             
             message.request_piece(sock, piece_index, 0, requested_size)
@@ -172,6 +232,7 @@ class TorrentClient:
             downloaded += requested_size
             # print("Done get piece (in hex):", block.hex())
             
+            
             # Xác minh mảnh và ghi vào tệp nếu hợp lệ
             if piece.verify_piece(block, self.pieces[piece_index]):
                 print("Piece verified...")
@@ -182,7 +243,10 @@ class TorrentClient:
 
         self.connect_to_tracker('completed', 0, downloaded, 0)
         sock.close()
-        rename_download(self.name)
+        if isinstance(self.name, list):
+            rename_download_folder(self.name, self.length_list)
+        else:
+            rename_download(self.name)
     
     def start_seeding_server(self, port=49053):
         # Tạo socket server
@@ -208,10 +272,17 @@ class TorrentClient:
 
     def upload(self, input_file_path):
         # Tạo bitfield từ file có sẵn (Vì là seed nên coi như có tất cả mọi mảnh)
-        with open(input_file_path, "rb") as file:
-            input_file_data = file.read()
-        bitfield_data = seed.generate_bitfield(input_file_data, self.piece_length, self.num_pieces)
+        if os.path.isdir(input_file_path):
+            # combine_files(input_file_path, input_file_path + ".temp")
+            # with open(input_file_path + ".temp", "rb") as file:
+            #     input_file_data = file.read()
+            input_file_data = combine_files(self.name)
+        else:    
+            with open(input_file_path, "rb") as file:
+                input_file_data = file.read()
         
+        bitfield_data = seed.generate_bitfield(input_file_data, self.piece_length, self.num_pieces)
+        return
         tracker_response = self.connect_to_tracker('started', 0, 0, 0)
         # if tracker_response is None:
         #     return
@@ -307,3 +378,8 @@ if __name__ == '__main__':
             print("Download: python main.py download <torrent_name stored in /torrent>.torrent")
             print("Upload: python main.py upload <torrent_name stored in /torrent>.torrent <input_file_name stored in /seeds>")
             print("Make torrent: python main.py maketor <input_file stored in /seeds> <torrent_name> <optional|tracker_url>")
+        # elif arguments[0] == "bypass":
+        #     torrent_name = arguments[1]
+        #     torrent_file = os.path.join("./torrent", torrent_name)
+        #     client = TorrentClient(torrent_file)
+        #     rename_download_folder(client.name, client.length_list)

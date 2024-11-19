@@ -252,7 +252,7 @@ class TorrentClient:
                 remaining_data = requested_piece_size - len(piece_data)
                 if remaining_data < BLOCK_SIZE:
                     request_block = remaining_data
-                print(f"Sending {BLOCK_SIZE}KB block request for piece {piece_index}...")
+                print(f"Sending {BLOCK_SIZE} Bytes block request for piece {piece_index}...")
                 message.request_piece(sock, piece_index, piece_offset, BLOCK_SIZE)
             
                 # Tính toán phần data còn lại để tìm kích thước block cuối cùng
@@ -405,7 +405,7 @@ if __name__ == '__main__':
             input_name = arguments[1]
             input_path = os.path.join("./seeds", input_name)
             torrent_name = arguments[2]
-            tracker_url = "http://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce"
+            tracker_url = "https://trackers.mlsub.net:443/announce"
             if len(arguments) == 4:
                 tracker_url = arguments[3]
             if len(arguments) > 4:

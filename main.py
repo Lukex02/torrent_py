@@ -147,8 +147,7 @@ class TorrentClient:
             'downloaded': downloaded,
             'left': left,
             'compact': 1,
-            'event': event,
-            'ip': ip
+            'event': event
         }
         url = f"{self.tracker_url}?{urllib.parse.urlencode(params)}"
         response = requests.get(url)
@@ -263,14 +262,13 @@ class TorrentClient:
                 print(f"Got block offset: {recv_piece_offset}, length: {recv_block_length} for piece {piece_index}")
 
             print(f"Downloaded piece {piece_index} from {client_ip}:{client_port}")
-            # Delay 1 giây để dễ theo dõi
+            # Delay 0.5 giây để dễ theo dõi
             time.sleep(0.5)
             
             with self.lock:
                 self.downloaded += requested_piece_size
                 self.downloading_piece.remove(bitfield_response["pieces"][piece_index])
                 self.downloaded_piece.append(bitfield_response["pieces"][piece_index])
-            # print("Done get piece (in hex):", block.hex())
             
             # Xác minh mảnh và ghi vào tệp nếu hợp lệ
             if piece.verify_piece(piece_data, self.pieces[piece_index]):
@@ -282,18 +280,18 @@ class TorrentClient:
             print("-----------------o0o-----------------")
     
     def start_seeding_server(self, port):
+        # Lấy tên máy (hostname) của máy tính hiện tại
+        hostname = socket.gethostname()
+        # Lấy địa chỉ IP của máy tính
+        ip_address = socket.gethostbyname(hostname)
+        tracker_response = self.connect_to_tracker('started', ip_address, port, 0, 0, 0)
+        
         # Tạo socket server
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         server_socket.bind(("", port))
         server_socket.listen(5)  # Lắng nghe tối đa 5 kết nối
         
-        # Lấy tên máy (hostname) của máy tính hiện tại
-        hostname = socket.gethostname()
-
-        # Lấy địa chỉ IP của máy tính
-        ip_address = socket.gethostbyname(hostname)
-        tracker_response = self.connect_to_tracker('started', ip_address, port, 0, 0, 0)
         print(f"Seeding server is listening on : {ip_address}:{port}...")
 
         while True:
@@ -407,7 +405,7 @@ if __name__ == '__main__':
             input_name = arguments[1]
             input_path = os.path.join("./seeds", input_name)
             torrent_name = arguments[2]
-            tracker_url = "http://1337.abcvg.info:80/announce"
+            tracker_url = "http://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce"
             if len(arguments) == 4:
                 tracker_url = arguments[3]
             if len(arguments) > 4:
@@ -420,7 +418,6 @@ if __name__ == '__main__':
             print("Make torrent completed!")
 
         # python main.py help
-        # elif sys.argv[1] == "help":
         elif arguments[0] == "help":
             print("Available commands:")
             print("Download: download <torrent_name stored in /torrent>.torrent")

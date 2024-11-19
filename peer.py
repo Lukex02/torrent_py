@@ -14,7 +14,7 @@ def connect_to_peer(peer_ip, peer_port):
         return s, local_ip, local_port
     except socket.error as e:
         print(f"Connection to {peer_ip}:{peer_port} failed with error: {e}")
-        return None
+        return None, None, None
 
 def receive_message(sock):
     # Đọc và phân tích message từ peer

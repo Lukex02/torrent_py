@@ -12,6 +12,7 @@ Chức năng đã hiện thực có thể dùng được:
 - Seed/Chia sẻ 1 file
 - Tải về 1 file
 - Kết nối với peer qua mạng LAN
+- Tải 1 thư mục nhiều file (tạo torrent từ cả thư mục)
 
 Chức năng còn thiếu:
 
@@ -21,7 +22,6 @@ Chức năng còn thiếu:
 Chức năng chưa thử nghiệm (khả năng cao là còn thiếu)
 
 - Kết nối peer qua mạng khác nhau
-- Tải 1 thư mục nhiều file (tạo torrent từ cả thư mục)
 - Multithread kết nối nhiều peer cùng lúc
 - Tải từ nhiều peer
 - Seed cho nhiều peer (thật ra code cơ chế seed hiện tại là trên lý thuyết có thể thực hiện được vì đang ở vòng `while True` request rồi gửi piece)

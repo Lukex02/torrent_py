@@ -65,9 +65,12 @@ def send_handshake(sock, info_hash, peer_id):
     response = sock.recv(128)
     print("Received handshake response!")
     # print("Received handshake response:", response)
+    handshake_response = response[0:68]
+    bitfield_length = struct.unpack(">I", response[68:72])[0]
+    bitfield_response = response[68:73+bitfield_length]
     
-    return (parse.parse_handshake_response(response[0:68]),
-            parse.parse_bitfield(response[68:74]))
+    return (parse.parse_handshake_response(handshake_response),
+            parse.parse_bitfield(bitfield_response))
 
 
 def send_interested(sock):

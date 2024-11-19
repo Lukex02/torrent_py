@@ -206,6 +206,9 @@ class TorrentClient:
         # print(f"Peer is from {client_ip}:{client_port}")
         # print(f"Current thread: {self.threads}, number of threads: {self.number_of_threads}")
         _, bitfield_response = message.send_handshake(sock, self.info_hash, self.peer_id)
+        
+        print(f"Client {client_ip}:{client_port} has {bitfield_response["pieces"]}")
+        
         # Send Interested message
         sock = message.send_interested(sock)
 
@@ -213,16 +216,14 @@ class TorrentClient:
         peer.wait_for_unchoke(sock)
         time.sleep(1)
 
-        # piece_data = b''
         for piece_index in range(len(bitfield_response["pieces"])):
+            # piece_data = bytearray(self.file_length)
             with self.lock:
                 # Đảm bảo không request piece đã download hay đang download
                 if bitfield_response["pieces"][piece_index] in self.downloaded_piece or bitfield_response["pieces"][piece_index] in self.downloading_piece:
                     continue
                 self.downloading_piece.append(bitfield_response["pieces"][piece_index])
                 print(f"Added piece {bitfield_response["pieces"][piece_index]} to queue...")
-            # piece_data = bytearray(self.file_length)
-            # for begin in (0, self.piece_length, BLOCK_SIZE)
             remain_data = self.file_length - self.downloaded
             
             print(f"Downloaded: {self.downloaded} (bytes)")
@@ -230,31 +231,47 @@ class TorrentClient:
             
             # Nếu như piece là piece cuối cùng
             if piece_index == len(bitfield_response["pieces"]) - 1:
-                print("Asking for the remaining...")
+                print("Asking for the remaining piece...")
                 # Vì request luôn luôn là 1 piece giống nhau trừ piece cuối luôn nhỏ hơn
-                requested_size = self.file_length % self.piece_length 
-                # requested_size = remain_data
+                requested_piece_size = self.file_length % self.piece_length 
             else:
                 print(f"Asking for 1 piece from {client_ip}:{client_port}...")
-                requested_size = self.piece_length
+                requested_piece_size = self.piece_length
+            # Bắt đầu vào quá trình gửi request cho piece số <piece_index>
+            print("Sending request piece:", piece_index)
             
-            message.request_piece(sock, piece_index, 0, requested_size)
-            print("Sent request piece:", piece_index)
-            time.sleep(1)
+            # Request piece theo từng block BLOCK_SIZE (16KB)
+            piece_data = b''
+            piece_offset = 0
+            while len(piece_data) < requested_piece_size:
+                request_block = BLOCK_SIZE
+                remaining_data = requested_piece_size - len(piece_data)
+                if remaining_data < BLOCK_SIZE:
+                    request_block = remaining_data
+                print(f"Sending {BLOCK_SIZE}KB block request for piece {piece_index}...")
+                message.request_piece(sock, piece_index, piece_offset, BLOCK_SIZE)
+            
+                # Tính toán phần data còn lại để tìm kích thước block cuối cùng
+                recv_block_length, recv_piece_offset, block = piece.wait_for_pieces(sock, request_block)
+                piece_data += block
+                piece_offset += recv_piece_offset + recv_block_length
+                print(f"Got block offset: {recv_piece_offset}, length: {recv_block_length} for piece {piece_index}")
 
-            recv_piece_length, recv_piece_begin_offset, block = piece.wait_for_pieces(sock, requested_size)
+            print(f"Downloaded piece {piece_index} from {client_ip}:{client_port}")
+            # Delay 1 giây để dễ theo dõi
+            time.sleep(0.5)
             
-            print("Write from", self.downloaded + recv_piece_begin_offset, "to", self.downloaded + recv_piece_begin_offset + recv_piece_length)
             with self.lock:
-                self.downloaded += requested_size
+                self.downloaded += requested_piece_size
                 self.downloading_piece.remove(bitfield_response["pieces"][piece_index])
                 self.downloaded_piece.append(bitfield_response["pieces"][piece_index])
             # print("Done get piece (in hex):", block.hex())
             
             # Xác minh mảnh và ghi vào tệp nếu hợp lệ
-            if piece.verify_piece(block, self.pieces[piece_index]):
-                print("Piece verified...")
-                piece.write_piece_to_file(OUTPUT_FILE, piece_index, block, self.piece_length)
+            # if piece.verify_piece(block, self.pieces[piece_index]):
+            if piece.verify_piece(piece_data, self.pieces[piece_index]):
+                print("Piece is verified!")
+                piece.write_piece_to_file(OUTPUT_FILE, piece_index, piece_data, self.piece_length)
                 print(f"Write to temporary file completed!")
             else:
                 raise Exception(f"Piece {piece_index} failed hash check. Please redownload")

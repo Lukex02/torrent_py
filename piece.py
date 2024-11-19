@@ -46,17 +46,17 @@ def write_piece_to_file(filename, piece_index, piece_data, piece_length):
         f.seek(piece_index * piece_length)  # Định vị trí ghi
         f.write(piece_data)  # Ghi mảnh vào tệp
 
-def receive_data(sock, piece_size):
+def receive_data(sock, block_size):
     # Biến để lưu dữ liệu nhận được
     data = b""
 
-    # Tiếp tục nhận dữ liệu cho đến khi đủ kích thước piece_size
-    while len(data) < piece_size:
+    # Tiếp tục nhận dữ liệu cho đến khi đủ kích thước block_size
+    while len(data) < block_size:
         # Tính toán bao nhiêu byte còn thiếu
-        remaining = piece_size - len(data)
+        remaining = block_size - len(data)
 
         # Nhận dữ liệu, tối đa là remaining bytes
-        chunk = sock.recv(min(remaining, 1024))  # Đọc tối đa 16KB mỗi lần
+        chunk = sock.recv(min(remaining, 1024))  # Đọc tối đa 1KB mỗi lần
 
         # Nếu không còn dữ liệu (kết nối bị đóng), thoát
         if not chunk:
@@ -65,7 +65,7 @@ def receive_data(sock, piece_size):
         # Thêm dữ liệu nhận được vào biến data
         data += chunk
 
-    # Because the package return is always greater than 16KB
+    # Package luôn lớn hơn so với kích thước requested 1 lượng dữ liệu < 1KB
     last_chunk = sock.recv(1024)
     data += last_chunk
 

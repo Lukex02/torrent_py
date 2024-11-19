@@ -33,7 +33,7 @@ def parse_bitfield(message):
 
     pieces = [index for index, bit in enumerate(bitfield_bits) if bit == '1']
 
-    print("Pieces have:", pieces)
+    # print("Pieces have:", pieces)
 
     if message_id != 5:
         raise ValueError("Message ID is not bitfield")

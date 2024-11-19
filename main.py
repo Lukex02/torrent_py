@@ -212,7 +212,7 @@ class TorrentClient:
         # print(f"Current thread: {self.threads}, number of threads: {self.number_of_threads}")
         _, bitfield_response = message.send_handshake(sock, self.info_hash, self.peer_id)
         
-        print(f"Client {client_ip}:{client_port} has {bitfield_response["pieces"]}")
+        print(f'Client {client_ip}:{client_port} has {bitfield_response["pieces"]}')
         
         # Send Interested message
         sock = message.send_interested(sock)
@@ -228,7 +228,7 @@ class TorrentClient:
                 if bitfield_response["pieces"][piece_index] in self.downloaded_piece or bitfield_response["pieces"][piece_index] in self.downloading_piece:
                     continue
                 self.downloading_piece.append(bitfield_response["pieces"][piece_index])
-                print(f"Added piece {bitfield_response["pieces"][piece_index]} to queue...")
+                print(f'Added piece {bitfield_response["pieces"][piece_index]} to queue...')
             remain_data = self.file_length - self.downloaded
             
             print(f"Downloaded: {self.downloaded} (bytes)")

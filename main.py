@@ -175,6 +175,9 @@ class TorrentClient:
         
         peers = self.get_peers(tracker_response)
         print(f"Found {len(peers)} peers from tracker.")
+        if len(peers) == 0:
+            print("No peers available")
+            return
         
         with open(OUTPUT_FILE, 'wb') as f:
             f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
@@ -194,6 +197,8 @@ class TorrentClient:
         for thread in self.threads:
             thread.join()
         
+        if sock is None:
+            raise Exception("Something went wrong...")
         self.connect_to_tracker('completed', client_ip, client_port, 0, self.downloaded, 0)
         self.connect_to_tracker('stopped', client_ip, client_port, 0, self.downloaded, 0)
         sock.close()
@@ -268,7 +273,6 @@ class TorrentClient:
             # print("Done get piece (in hex):", block.hex())
             
             # Xác minh mảnh và ghi vào tệp nếu hợp lệ
-            # if piece.verify_piece(block, self.pieces[piece_index]):
             if piece.verify_piece(piece_data, self.pieces[piece_index]):
                 print("Piece is verified!")
                 piece.write_piece_to_file(OUTPUT_FILE, piece_index, piece_data, self.piece_length)
@@ -383,7 +387,7 @@ if __name__ == '__main__':
             torrent_file = os.path.join("./torrent", torrent_name)
             client = TorrentClient(torrent_file)
             client.download()
-            print("Download completed!")
+            print("Closing Download!")
 
         # python main.py upload <torrent_path> <input_file_name in /seeds>
         elif arguments[0] == "upload":
@@ -393,7 +397,7 @@ if __name__ == '__main__':
             torrent_path = os.path.join("./torrent", torrent_file)
             client = TorrentClient(torrent_path)
             client.upload(input_file_path)
-            print("Upload completed!")
+            print("Closing Upload!")
 
         # python main.py maketor <input_path> <torrent_name> <optional|tracker_url>
         elif arguments[0] == "maketor":
@@ -403,7 +407,7 @@ if __name__ == '__main__':
             input_name = arguments[1]
             input_path = os.path.join("./seeds", input_name)
             torrent_name = arguments[2]
-            tracker_url = "https://tr.zukizuki.org:443/announce"
+            tracker_url = "http://1337.abcvg.info:80/announce"
             if len(arguments) == 4:
                 tracker_url = arguments[3]
             if len(arguments) > 4:
@@ -419,9 +423,9 @@ if __name__ == '__main__':
         # elif sys.argv[1] == "help":
         elif arguments[0] == "help":
             print("Available commands:")
-            print("Download: python main.py download <torrent_name stored in /torrent>.torrent")
-            print("Upload: python main.py upload <torrent_name stored in /torrent>.torrent <input_file_name stored in /seeds>")
-            print("Make torrent: python main.py maketor <input_file stored in /seeds> <torrent_name> <optional|tracker_url>")
+            print("Download: download <torrent_name stored in /torrent>.torrent")
+            print("Upload: upload <torrent_name stored in /torrent>.torrent <input_file_name stored in /seeds>")
+            print("Make torrent: maketor <input_file stored in /seeds> <torrent_name> <optional|tracker_url>")
         elif arguments[0] == "stop_all":
             torrent_name = arguments[1]
             torrent_file = os.path.join("./torrent", torrent_name)

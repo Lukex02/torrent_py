@@ -18,19 +18,20 @@ import seed
 
 OUTPUT_FILE = 'output.temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
+from_docker = False
+upload_port = 0
 
+# Decode file đã download 
 def rename_download(new_file_name):
     if not os.path.exists("./download"): 
         os.makedirs("./download") 
     new_file_path = os.path.join("./download", new_file_name)
     os.rename(OUTPUT_FILE, new_file_path)
-    
+
+# Decode file và folder đã download   
 def rename_download_folder(new_file_list, file_length_list):
     with open(OUTPUT_FILE, 'rb') as f:
         output_raw = f.read()
-    # print(new_file_list)
-    # print(file_length_list[3])
-    # return
     root_path = "./download/" + new_file_list[0]
     os.makedirs(root_path)
     
@@ -54,6 +55,7 @@ def rename_download_folder(new_file_list, file_length_list):
                 path = root_path
                 index += 1
 
+# Kết hợp file để làm torrent cho folder
 def combine_files(file_list):
     root_path = "./seeds/" + file_list[0]
     path = root_path
@@ -175,7 +177,8 @@ class TorrentClient:
         # print(tracker_response)
         
         peers = self.get_peers(tracker_response)
-        # peers.append(["host.docker.internal", 60355])
+        if from_docker:
+            peers.append(["116.110.43.142", 52305])
         print(f"Found {len(peers)} peers from tracker.")
         if len(peers) == 0:
             print("No peers available")
@@ -198,10 +201,10 @@ class TorrentClient:
         for thread in self.download_threads:
             thread.join()
         
+        self.connect_to_tracker('stopped', client_ip, client_port, 0, self.downloaded, 0)
         if sock is None:
             raise Exception("Something went wrong...")
         self.connect_to_tracker('completed', client_ip, client_port, 0, self.downloaded, 0)
-        self.connect_to_tracker('stopped', client_ip, client_port, 0, self.downloaded, 0)
         sock.close()
         if isinstance(self.name, list):
             rename_download_folder(self.name, self.length_list)
@@ -222,7 +225,6 @@ class TorrentClient:
         time.sleep(1)
 
         for piece_index in range(len(bitfield_response["pieces"])):
-            # piece_data = bytearray(self.file_length)
             with self.lock:
                 # Đảm bảo không request piece đã download hay đang download
                 if bitfield_response["pieces"][piece_index] in self.downloaded_piece or bitfield_response["pieces"][piece_index] in self.downloading_piece:
@@ -231,8 +233,7 @@ class TorrentClient:
                 print(f'Added piece {bitfield_response["pieces"][piece_index]} to queue...')
             remain_data = self.file_length - self.downloaded
             
-            print(f"Downloaded: {self.downloaded} (bytes)")
-            print(f"Remaining: {remain_data} (bytes)")
+            print(f"Downloaded: {self.downloaded}, remaining: {remain_data}(bytes)")
             
             # Nếu như piece là piece cuối cùng
             if piece_index == len(bitfield_response["pieces"]) - 1:
@@ -253,27 +254,30 @@ class TorrentClient:
                 remaining_data = requested_piece_size - len(piece_data)
                 if remaining_data < BLOCK_SIZE:
                     request_block = remaining_data
-                print(f"Sending {BLOCK_SIZE} Bytes block request for piece {piece_index}...")
-                message.request_piece(sock, piece_index, piece_offset, BLOCK_SIZE)
+                print(f"Sending {request_block} Bytes block request for piece {piece_index}...")
+                message.request_piece(sock, piece_index, piece_offset, request_block)
             
                 # Tính toán phần data còn lại để tìm kích thước block cuối cùng
                 recv_block_length, recv_piece_offset, block = piece.wait_for_pieces(sock, request_block)
                 piece_data += block
-                piece_offset += recv_piece_offset + recv_block_length
+                piece_offset = recv_piece_offset + recv_block_length
                 print(f"Got block offset: {recv_piece_offset}, length: {recv_block_length} for piece {piece_index}")
+                print("-----------------o0o-----------------")
 
             print(f"Downloaded piece {piece_index} from {client_ip}:{client_port}")
             # Delay 0.5 giây để dễ theo dõi
-            time.sleep(0.5)
+            # time.sleep(0.5)
+            print("-----------------o0o-----------------")
             
             with self.lock:
                 self.downloaded += requested_piece_size
                 self.downloading_piece.remove(bitfield_response["pieces"][piece_index])
                 self.downloaded_piece.append(bitfield_response["pieces"][piece_index])
             
+            print("-----------------o0o-----------------")
             # Xác minh mảnh và ghi vào tệp nếu hợp lệ
             if piece.verify_piece(piece_data, self.pieces[piece_index]):
-                print("Piece is verified!")
+                print(f"Piece {piece_index} is verified!")
                 piece.write_piece_to_file(OUTPUT_FILE, piece_index, piece_data, self.piece_length)
                 print(f"Write to temporary file completed!")
             else:
@@ -290,10 +294,11 @@ class TorrentClient:
         # Tạo socket server
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        server_socket.bind(("", port))
+        server_socket.bind((ip_address, port))
         server_socket.listen(5)  # Lắng nghe tối đa 5 kết nối
         
-        print(f"Seeding server is listening on : {ip_address}:{port}...")
+        print(f"Seeding server is listening on port : {port}...")
+        # print(f"Seeding server is listening on : {ip_address}:{port}...")
         try:
             while not self.stop_flag.is_set():
                 server_socket.settimeout(1) # Kiểm tra stop_flag mỗi giây
@@ -315,11 +320,7 @@ class TorrentClient:
             print("Server stopped")
 
     def upload(self, input_file_path):
-        # Tạo ngẫu nhiên cổng tạm thời
-        # local_port = random.randint(49152, 65535)
-        local_port = 60355
-        # self.start_seeding_server(local_port, input_file_path)
-        server_thread = threading.Thread(target=self.start_seeding_server, args=(local_port, input_file_path))
+        server_thread = threading.Thread(target=self.start_seeding_server, args=(upload_port, input_file_path))
         server_thread.start()
         
         try:
@@ -339,8 +340,6 @@ class TorrentClient:
                 input_file_data = file.read()
         
         bitfield_data = seed.generate_bitfield(input_file_data, self.piece_length, self.num_pieces)
-        # if tracker_response is None:
-        #     return
         
         # Sau khi kết nối được với peer khác, đợi handshake
         handshake_response = seed.wait_for_handshake(socket)
@@ -389,6 +388,11 @@ class TorrentClient:
             self.connect_to_tracker('stopped', ip, port, 0, 0, 0)
 
 if __name__ == '__main__':
+    # Nhập cổng sẽ sử dụng khi upload/seed
+    while upload_port not in range(49123, 60999):
+        usr_inp = input('Enter upload port (49123, 60999): ')
+        upload_port = int(usr_inp)
+        
     # Create mandatory directory
     if not os.path.exists("./torrent"): 
         os.makedirs("./torrent")
@@ -404,27 +408,37 @@ if __name__ == '__main__':
         
         # python main.py download <torrent_path>
         if arguments[0] == "download":
+            if len(arguments) != 2:
+                print("Wrong argument...")
+                continue
             torrent_name = arguments[1]
             torrent_file = os.path.join("./torrent", torrent_name)
             client = TorrentClient(torrent_file)
             client.download()
-            print("Closed Download!")
+            print("---------///////---------")
+            print("------Closed Download!")
+            print("---------///////---------")
 
         # python main.py upload <torrent_path> <input_file_name in /seeds>
         elif arguments[0] == "upload":
+            if len(arguments) != 3:
+                print("Wrong argument...")
+                continue
             torrent_file = arguments[1]
             input_file_name = arguments[2]
             input_file_path = os.path.join("./seeds", input_file_name)
             torrent_path = os.path.join("./torrent", torrent_file)
             client = TorrentClient(torrent_path)
             client.upload(input_file_path)
-            print("Closed Upload!")
+            print("---------///////---------")
+            print("------Closed Upload!")
+            print("---------///////---------")
 
         # python main.py maketor <input_path> <torrent_name> <optional|tracker_url>
         elif arguments[0] == "maketor":
             if len(arguments) < 3:
-                raise Exception("Missing argumnent for maketor")
-
+                print("Missing argumnent for maketor")
+                continue
             input_name = arguments[1]
             input_path = os.path.join("./seeds", input_name)
             torrent_name = arguments[2]
@@ -438,18 +452,25 @@ if __name__ == '__main__':
             torrent_path = os.path.join("./torrent", torrent_name)
 
             makeTorrent.create_torrent(input_path, tracker_url, torrent_path)
-            print("Make torrent completed!")
+            print("---------///////---------")
+            print("------Make torrent completed!")
+            print("---------///////---------")
 
         # python main.py help
         elif arguments[0] == "help":
+            if len(arguments) != 1:
+                print("Wrong argument...")
+                continue
             print("Available commands:")
             print("Download: download <torrent_name stored in /torrent>.torrent")
             print("Upload: upload <torrent_name stored in /torrent>.torrent <input_file_name stored in /seeds>")
             print("Make torrent: maketor <input_file stored in /seeds> <torrent_name> <optional|tracker_url>")
         elif arguments[0] == "stop_all":
+            if len(arguments) != 2:
+                print("Wrong argument...")
+                continue
             torrent_name = arguments[1]
             torrent_file = os.path.join("./torrent", torrent_name)
-            # rename_download_folder(client.name, client.length_list)
             client = TorrentClient(torrent_file)
             client.force_stopped_all()
             

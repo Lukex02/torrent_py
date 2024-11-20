@@ -6,9 +6,9 @@ def connect_to_peer(peer_ip, peer_port):
     try:
         # Tạo kết nối với peer
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(30)  # Thiết lập timeout (10 giây)
+        s.settimeout(5)                 # Thiết lập timeout (5 giây)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        s.connect((peer_ip, peer_port))  # Kết nối tới peer
+        s.connect((peer_ip, peer_port)) # Kết nối tới peer
         print(f"Connected to {peer_ip}:{peer_port}")
         local_ip, local_port = s.getsockname()
         return s, local_ip, local_port

@@ -20,6 +20,10 @@ OUTPUT_FILE = 'output.temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
 from_docker = False
 upload_port = 0
+container_list = [["172.0.0.2", 50000],
+                  ["172.0.0.3", 55000],
+                  ["172.0.0.4", 59000],
+                  ["172.0.0.5", 61000]]
 
 # Decode file đã download 
 def rename_download(new_file_name):
@@ -167,23 +171,22 @@ class TorrentClient:
 
     def download(self):
         # Lấy tên máy chủ
-        hostname = socket.gethostname()
+        # hostname = socket.gethostname()
         # Lấy địa chỉ IP của máy chủ
-        local_ip = socket.gethostbyname(hostname)
+        # local_ip = socket.gethostbyname(hostname)
         
-        tracker_response = self.connect_to_tracker('started', local_ip, 6881, 0, 0, self.file_length)
+        tracker_response = self.connect_to_tracker('started', 6881, 0, 0, self.file_length)
         if tracker_response is None:
             raise Exception("Tracker didn't response")
         # print(tracker_response)
         
         peers = self.get_peers(tracker_response)
         if from_docker:
-            peers.append(["116.110.43.142", 52305])
+            peers.extend(container_list)
         print(f"Found {len(peers)} peers from tracker.")
-        if len(peers) == 0:
+        if len(peers) == 0:          
             print("No peers available")
-            return
-        
+            return      
         with open(OUTPUT_FILE, 'wb') as f:
             f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
         # Connect to peer
@@ -201,11 +204,13 @@ class TorrentClient:
         for thread in self.download_threads:
             thread.join()
         
-        self.connect_to_tracker('stopped', client_ip, client_port, 0, self.downloaded, 0)
         if sock is None:
+            self.connect_to_tracker('stopped', client_port, 0, self.downloaded, 0)
             raise Exception("Something went wrong...")
-        self.connect_to_tracker('completed', client_ip, client_port, 0, self.downloaded, 0)
+        
         sock.close()
+        self.connect_to_tracker('completed', client_port, 0, self.downloaded, 0)
+        self.connect_to_tracker('stopped', client_port, 0, self.downloaded, 0)
         if isinstance(self.name, list):
             rename_download_folder(self.name, self.length_list)
         else:
@@ -289,7 +294,7 @@ class TorrentClient:
         hostname = socket.gethostname()
         # Lấy địa chỉ IP của máy tính
         ip_address = socket.gethostbyname(hostname)
-        self.connect_to_tracker('started', ip_address, port, 0, 0, 0)
+        self.connect_to_tracker('started', port, 0, 0, 0)
         
         # Tạo socket server
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -315,7 +320,7 @@ class TorrentClient:
             print("Stopping server...")
             for thread in self.upload_threads:
                 thread.join()  # Wait for all threads to finish
-            self.connect_to_tracker('stopped', ip_address, port, 0, 0, 0)
+            self.connect_to_tracker('stopped', port, 0, 0, 0)
             server_socket.close()
             print("Server stopped")
 
@@ -374,7 +379,7 @@ class TorrentClient:
         # Lấy địa chỉ IP của máy chủ
         local_ip = socket.gethostbyname(hostname)
         
-        tracker_response = self.connect_to_tracker('started', local_ip, 6881, 0, 0, self.file_length)
+        tracker_response = self.connect_to_tracker('started', 6881, 0, 0, self.file_length)
         if tracker_response is None:
             raise Exception("Tracker didn't response")
         # print(tracker_response)
@@ -385,7 +390,7 @@ class TorrentClient:
         # Connect to peer
         for ip, port in peers:
             print(f"Sent 'stopped' for peer {ip}:{port}...")
-            self.connect_to_tracker('stopped', ip, port, 0, 0, 0)
+            self.connect_to_tracker('stopped', port, 0, 0, 0)
 
 if __name__ == '__main__':
     # Nhập cổng sẽ sử dụng khi upload/seed

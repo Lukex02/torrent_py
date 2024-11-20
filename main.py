@@ -18,12 +18,12 @@ import seed
 
 OUTPUT_FILE = 'output.temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
-from_docker = False
+from_docker = True
 upload_port = 0
-container_list = [["172.0.0.2", 50000],
-                  ["172.0.0.3", 55000],
-                  ["172.0.0.4", 59000],
-                  ["172.0.0.5", 61000]]
+container_list = [["172.17.0.2", 52000],
+                  ["172.17.0.3", 53000],
+                  ["172.17.0.4", 54000],
+                  ["172.17.0.5", 55000]]
 
 # Decode file đã download 
 def rename_download(new_file_name):
@@ -146,7 +146,7 @@ class TorrentClient:
     def generate_peer_id(self):
         return b'-tP1001-' + ''.join([str(random.randint(0, 9)) for _ in range(12)]).encode()
 
-    def connect_to_tracker(self, event, ip, port, uploaded, downloaded, left):
+    def connect_to_tracker(self, event, port, uploaded, downloaded, left):
         params = {
             'info_hash': self.info_hash,
             'peer_id': self.peer_id,
@@ -204,13 +204,8 @@ class TorrentClient:
         for thread in self.download_threads:
             thread.join()
         
-        if sock is None:
-            self.connect_to_tracker('stopped', client_port, 0, self.downloaded, 0)
-            raise Exception("Something went wrong...")
-        
-        sock.close()
-        self.connect_to_tracker('completed', client_port, 0, self.downloaded, 0)
-        self.connect_to_tracker('stopped', client_port, 0, self.downloaded, 0)
+        self.connect_to_tracker('completed', 6881, 0, self.downloaded, 0)
+        self.connect_to_tracker('stopped', 6881, 0, self.downloaded, 0)
         if isinstance(self.name, list):
             rename_download_folder(self.name, self.length_list)
         else:
@@ -288,6 +283,8 @@ class TorrentClient:
             else:
                 raise Exception(f"Piece {piece_index} failed hash check. Please redownload")
             print("-----------------o0o-----------------")
+        
+        sock.close()
     
     def start_seeding_server(self, port, input_file_path):
         # Lấy tên máy (hostname) của máy tính hiện tại
@@ -317,9 +314,11 @@ class TorrentClient:
                 except socket.timeout:
                     continue
         finally:
+            print("-----------------o0o-----------------")
             print("Stopping server...")
             for thread in self.upload_threads:
                 thread.join()  # Wait for all threads to finish
+                
             self.connect_to_tracker('stopped', port, 0, 0, 0)
             server_socket.close()
             print("Server stopped")
@@ -346,6 +345,7 @@ class TorrentClient:
         
         bitfield_data = seed.generate_bitfield(input_file_data, self.piece_length, self.num_pieces)
         
+        print("-----------------o0o-----------------")
         # Sau khi kết nối được với peer khác, đợi handshake
         handshake_response = seed.wait_for_handshake(socket)
         if seed.validate_handshake(handshake_response, self.info_hash):
@@ -368,6 +368,7 @@ class TorrentClient:
                 piece_begin = piece_index * self.piece_length + offset
                 piece_end = piece_begin + length
                 seed.send_piece(socket, piece_index, offset, input_file_data[piece_begin:piece_end])
+                print("-----------------o0o-----------------")
                 # Cooldown 2 giây để theo dõi
                 # time.sleep(2)
     

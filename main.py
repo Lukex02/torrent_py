@@ -18,13 +18,14 @@ import seed
 
 OUTPUT_FILE = 'output.temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
-from_docker = True
+from_docker = False
 upload_port = 0
 container_list = [
                 # ["172.17.0.2", 52000],
                 # ["172.17.0.3", 53000],
                 # ["172.17.0.4", 54000],
-                ["10.128.30.13", 49124],
+                ["10.128.30.13", 51000],
+                ["10.128.37.206", 52000],
                 # ["172.17.0.5", 55000]
                   ]
 
@@ -149,7 +150,7 @@ class TorrentClient:
     def generate_peer_id(self):
         return b'-tP1001-' + ''.join([str(random.randint(0, 9)) for _ in range(12)]).encode()
 
-    def connect_to_tracker(self, event, port, uploaded, downloaded, left):
+    def connect_to_tracker(self, event, ip, port, uploaded, downloaded, left):
         params = {
             'info_hash': self.info_hash,
             'peer_id': self.peer_id,
@@ -158,7 +159,8 @@ class TorrentClient:
             'downloaded': downloaded,
             'left': left,
             'compact': 1,
-            'event': event
+            'event': event,
+            'ip': ip
         }
         url = f"{self.tracker_url}?{urllib.parse.urlencode(params)}"
         response = requests.get(url)
@@ -174,11 +176,11 @@ class TorrentClient:
 
     def download(self):
         # Lấy tên máy chủ
-        # hostname = socket.gethostname()
+        hostname = socket.gethostname()
         # Lấy địa chỉ IP của máy chủ
-        # local_ip = socket.gethostbyname(hostname)
+        local_ip = socket.gethostbyname(hostname)
         
-        tracker_response = self.connect_to_tracker('started', 6881, 0, 0, self.file_length)
+        tracker_response = self.connect_to_tracker('started', local_ip, 6881, 0, 0, self.file_length)
         if tracker_response is None:
             raise Exception("Tracker didn't response")
         # print(tracker_response)
@@ -221,8 +223,8 @@ class TorrentClient:
         for thread in self.download_threads:
             thread.join()
         
-        self.connect_to_tracker('completed', 6881, 0, self.downloaded, 0)
-        self.connect_to_tracker('stopped', 6881, 0, self.downloaded, 0)
+        self.connect_to_tracker('completed', local_ip, 6881, 0, self.downloaded, 0)
+        self.connect_to_tracker('stopped', local_ip, 6881, 0, self.downloaded, 0)
 
         if isinstance(self.name, list):
             rename_download_folder(self.name, self.length_list)
@@ -309,7 +311,7 @@ class TorrentClient:
         hostname = socket.gethostname()
         # Lấy địa chỉ IP của máy tính
         ip_address = socket.gethostbyname(hostname)
-        self.connect_to_tracker('started', port, 0, 0, 0)
+        self.connect_to_tracker('started', ip_address, port, 0, 0, 0)
         
         # Tạo socket server
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -398,7 +400,7 @@ class TorrentClient:
         # Lấy địa chỉ IP của máy chủ
         local_ip = socket.gethostbyname(hostname)
         
-        tracker_response = self.connect_to_tracker('started', 6881, 0, 0, self.file_length)
+        tracker_response = self.connect_to_tracker('started', local_ip, 6881, 0, 0, self.file_length)
         if tracker_response is None:
             raise Exception("Tracker didn't response")
         # print(tracker_response)
@@ -409,7 +411,7 @@ class TorrentClient:
         # Connect to peer
         for ip, port in peers:
             print(f"Sent 'stopped' for peer {ip}:{port}...")
-            self.connect_to_tracker('stopped', port, 0, 0, 0)
+            self.connect_to_tracker('stopped', ip, port, 0, 0, 0)
 
 if __name__ == '__main__':
     # Nhập cổng sẽ sử dụng khi upload/seed
@@ -457,14 +459,12 @@ if __name__ == '__main__':
             if len(arguments) != 2:
                 print("Wrong argument...")
                 continue
+            
             torrent_file = arguments[1]
-            # input_file_name = arguments[2]
-            # input_file_path = os.path.join("./seeds", input_file_name)
             torrent_path = os.path.join("./torrent", torrent_file)
             client = TorrentClient(torrent_path)
             input_file = client.name
-            # print(input_file)
-            # break
+
             if isinstance(input_file, list):
                 input_file_path = os.path.join("./seeds", input_file[0])
             else:
@@ -483,7 +483,7 @@ if __name__ == '__main__':
             input_name = arguments[1]
             input_path = os.path.join("./seeds", input_name)
             torrent_name = arguments[2]
-            tracker_url = "https://trackers.mlsub.net:443/announce"
+            tracker_url = "http://10.128.28.179:8080/announce"
             if len(arguments) == 4:
                 tracker_url = arguments[3]
             if len(arguments) > 4:

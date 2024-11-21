@@ -20,10 +20,13 @@ OUTPUT_FILE = 'output.temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
 from_docker = True
 upload_port = 0
-container_list = [["172.17.0.2", 52000],
-                  ["172.17.0.3", 53000],
-                  ["172.17.0.4", 60000],
-                  ["172.17.0.5", 55000]]
+container_list = [
+                # ["172.17.0.2", 52000],
+                # ["172.17.0.3", 53000],
+                # ["172.17.0.4", 54000],
+                ["10.128.30.13", 49124],
+                # ["172.17.0.5", 55000]
+                  ]
 
 # Decode file đã download 
 def rename_download(new_file_name):
@@ -384,8 +387,8 @@ class TorrentClient:
                 piece_end = piece_begin + length
                 seed.send_piece(socket, piece_index, offset, input_file_data[piece_begin:piece_end])
                 print("-----------------o0o-----------------")
-                # Cooldown 2 giây để theo dõi
-                # time.sleep(2)
+                # Cooldown 0.5 giây để theo dõi
+                # time.sleep(0.5)
     
         return  # Ngừng seed với peer đang kết nối
 

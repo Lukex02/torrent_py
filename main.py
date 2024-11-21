@@ -30,11 +30,11 @@ def rename_download(new_file_name):
     if not os.path.exists("./download"): 
         os.makedirs("./download") 
     new_file_path = os.path.join("./download", new_file_name)
-    os.rename(OUTPUT_FILE, new_file_path)
+    os.rename(new_file_name + ".temp", new_file_path)
 
 # Decode file và folder đã download   
 def rename_download_folder(new_file_list, file_length_list):
-    with open(OUTPUT_FILE, 'rb') as f:
+    with open(new_file_list[0] + ".temp", 'rb') as f:
         output_raw = f.read()
     root_path = "./download/" + new_file_list[0]
     os.makedirs(root_path)
@@ -183,12 +183,26 @@ class TorrentClient:
         peers = self.get_peers(tracker_response)
         if from_docker:
             peers.extend(container_list)
-        print(f"Found {len(peers)} peers from tracker.")
+        print(f"({self.name}) Found {len(peers)} peers from tracker.")
         if len(peers) == 0:          
             print("No peers available")
-            return      
-        with open(OUTPUT_FILE, 'wb') as f:
+            return
+        
+        # Lấy tên folder gốc để làm tên file tạm
+        if isinstance(self.name, list):
+            output = self.name[0] + ".temp"
+            # with open(self.name[0], 'wb') as f:
+            #     f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
+        # Lấy tên file gốc để làm tên file tạm
+        else:
+            output = self.name + ".temp"
+            # with open(self.name + ".temp", 'wb') as f:
+            #     f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
+        with open(output, 'wb') as f:
             f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
+        # with open(OUTPUT_FILE, 'wb') as f:
+        #     f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
+
         # Connect to peer
         for ip, port in peers:
             print(f"Connecting to peer {ip}:{port}...")
@@ -197,7 +211,7 @@ class TorrentClient:
             
             if sock is not None:
                 # Phân tích peer để tạo số lượng thread
-                downloader_thread = threading.Thread(target=self.download_from_peer, args=(sock, ip, port,))
+                downloader_thread = threading.Thread(target=self.download_from_peer, args=(sock, ip, port, output))
                 downloader_thread.start()
                 self.download_threads.append(downloader_thread)
             
@@ -206,12 +220,13 @@ class TorrentClient:
         
         self.connect_to_tracker('completed', 6881, 0, self.downloaded, 0)
         self.connect_to_tracker('stopped', 6881, 0, self.downloaded, 0)
+
         if isinstance(self.name, list):
             rename_download_folder(self.name, self.length_list)
         else:
             rename_download(self.name)
             
-    def download_from_peer(self, sock, client_ip, client_port):
+    def download_from_peer(self, sock, client_ip, client_port, output):
         # print(f"Peer is from {client_ip}:{client_port}")
         _, bitfield_response = message.send_handshake(sock, self.info_hash, self.peer_id)
         
@@ -278,7 +293,7 @@ class TorrentClient:
             # Xác minh mảnh và ghi vào tệp nếu hợp lệ
             if piece.verify_piece(piece_data, self.pieces[piece_index]):
                 print(f"Piece {piece_index} is verified!")
-                piece.write_piece_to_file(OUTPUT_FILE, piece_index, piece_data, self.piece_length)
+                piece.write_piece_to_file(output, piece_index, piece_data, self.piece_length)
                 print(f"Write to temporary file completed!")
             else:
                 raise Exception(f"Piece {piece_index} failed hash check. Please redownload")
@@ -296,7 +311,7 @@ class TorrentClient:
         # Tạo socket server
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        server_socket.bind((ip_address, port))
+        server_socket.bind(("", port))
         server_socket.listen(5)  # Lắng nghe tối đa 5 kết nối
         
         print(f"Seeding server is listening on port : {port}...")
@@ -414,27 +429,44 @@ if __name__ == '__main__':
         
         # python main.py download <torrent_path>
         if arguments[0] == "download":
-            if len(arguments) != 2:
+            if len(arguments) < 2:
                 print("Wrong argument...")
                 continue
-            torrent_name = arguments[1]
-            torrent_file = os.path.join("./torrent", torrent_name)
-            client = TorrentClient(torrent_file)
-            client.download()
+            client_active = []
+            client_active_download_thread = []
+            for input_torrent_index in range(len(arguments[1:])):
+                torrent_name = arguments[input_torrent_index+1]
+                torrent_file = os.path.join("./torrent", torrent_name)
+                client_active.append(TorrentClient(torrent_file))
+                client_download_thread = threading.Thread(target=client_active[input_torrent_index].download, args=())
+                client_active_download_thread.append(client_download_thread)
+                client_download_thread.start()
+            
+            for thread in client_active_download_thread:
+                thread.join()
+            
             print("---------///////---------")
             print("------Closed Download!")
             print("---------///////---------")
 
         # python main.py upload <torrent_path> <input_file_name in /seeds>
         elif arguments[0] == "upload":
-            if len(arguments) != 3:
+            if len(arguments) != 2:
                 print("Wrong argument...")
                 continue
             torrent_file = arguments[1]
-            input_file_name = arguments[2]
-            input_file_path = os.path.join("./seeds", input_file_name)
+            # input_file_name = arguments[2]
+            # input_file_path = os.path.join("./seeds", input_file_name)
             torrent_path = os.path.join("./torrent", torrent_file)
             client = TorrentClient(torrent_path)
+            input_file = client.name
+            # print(input_file)
+            # break
+            if isinstance(input_file, list):
+                input_file_path = os.path.join("./seeds", input_file[0])
+            else:
+                input_file_path = os.path.join("./seeds", input_file)
+
             client.upload(input_file_path)
             print("---------///////---------")
             print("------Closed Upload!")

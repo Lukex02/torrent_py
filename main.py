@@ -18,16 +18,7 @@ import seed
 
 OUTPUT_FILE = 'output.temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
-from_docker = False
-upload_port = 0
-container_list = [
-                # ["172.17.0.2", 52000],
-                # ["172.17.0.3", 53000],
-                # ["172.17.0.4", 54000],
-                ["10.128.30.13", 51000],
-                ["10.128.37.206", 52000],
-                # ["172.17.0.5", 55000]
-                  ]
+upload_port = random.randint(49123, 60999)
 
 # Decode file đã download 
 def rename_download(new_file_name):
@@ -223,7 +214,6 @@ class TorrentClient:
         for thread in self.download_threads:
             thread.join()
         
-        self.connect_to_tracker('completed', local_ip, 6881, 0, self.downloaded, 0)
         self.connect_to_tracker('stopped', local_ip, 6881, 0, self.downloaded, 0)
 
         if isinstance(self.name, list):
@@ -319,8 +309,8 @@ class TorrentClient:
         server_socket.bind(("", port))
         server_socket.listen(5)  # Lắng nghe tối đa 5 kết nối
         
-        print(f"Seeding server is listening on port : {port}...")
-        # print(f"Seeding server is listening on : {ip_address}:{port}...")
+        # print(f"Seeding server is listening on port : {port}...")
+        print(f"Seeding server is listening on : {ip_address}:{port}...")
         try:
             while not self.stop_flag.is_set():
                 server_socket.settimeout(1) # Kiểm tra stop_flag mỗi giây
@@ -339,7 +329,7 @@ class TorrentClient:
             for thread in self.upload_threads:
                 thread.join()  # Wait for all threads to finish
                 
-            self.connect_to_tracker('stopped', port, 0, 0, 0)
+            self.connect_to_tracker('stopped', ip_address, port, 0, 0, 0)
             server_socket.close()
             print("Server stopped")
 

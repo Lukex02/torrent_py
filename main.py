@@ -5,7 +5,6 @@ import socket
 import struct
 import random
 import urllib.parse
-# import sys
 import threading
 import time
 import os
@@ -18,7 +17,7 @@ import seed
 
 OUTPUT_FILE = 'output.temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
-upload_port = random.randint(49123, 60999)
+local_port = random.randint(49123, 60999)
 
 # Decode file đã download 
 def rename_download(new_file_name):
@@ -171,33 +170,24 @@ class TorrentClient:
         # Lấy địa chỉ IP của máy chủ
         local_ip = socket.gethostbyname(hostname)
         
-        tracker_response = self.connect_to_tracker('started', local_ip, 6881, 0, 0, self.file_length)
+        tracker_response = self.connect_to_tracker('started', local_ip, local_port, 0, 0, self.file_length)
         if tracker_response is None:
             raise Exception("Tracker didn't response")
-        # print(tracker_response)
         
         peers = self.get_peers(tracker_response)
-        if from_docker:
-            peers.extend(container_list)
         print(f"({self.name}) Found {len(peers)} peers from tracker.")
         if len(peers) == 0:          
             print("No peers available")
             return
         
-        # Lấy tên folder gốc để làm tên file tạm
         if isinstance(self.name, list):
+            # Lấy tên folder gốc để làm tên file tạm
             output = self.name[0] + ".temp"
-            # with open(self.name[0], 'wb') as f:
-            #     f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
-        # Lấy tên file gốc để làm tên file tạm
         else:
+            # Lấy tên file gốc để làm tên file tạm
             output = self.name + ".temp"
-            # with open(self.name + ".temp", 'wb') as f:
-            #     f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
         with open(output, 'wb') as f:
             f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
-        # with open(OUTPUT_FILE, 'wb') as f:
-        #     f.truncate(self.file_length)  # Dành dung lượng cho tệp đầu ra
 
         # Connect to peer
         for ip, port in peers:
@@ -207,14 +197,14 @@ class TorrentClient:
             
             if sock is not None:
                 # Phân tích peer để tạo số lượng thread
-                downloader_thread = threading.Thread(target=self.download_from_peer, args=(sock, ip, port, output))
+                downloader_thread = threading.Thread(target=self.download_from_peer, args=(sock, client_ip, client_port, output))
                 downloader_thread.start()
                 self.download_threads.append(downloader_thread)
             
         for thread in self.download_threads:
             thread.join()
         
-        self.connect_to_tracker('stopped', local_ip, 6881, 0, self.downloaded, 0)
+        self.connect_to_tracker('stopped', local_ip, local_port, 0, self.downloaded, 0)
 
         if isinstance(self.name, list):
             rename_download_folder(self.name, self.length_list)
@@ -222,7 +212,6 @@ class TorrentClient:
             rename_download(self.name)
             
     def download_from_peer(self, sock, client_ip, client_port, output):
-        # print(f"Peer is from {client_ip}:{client_port}")
         _, bitfield_response = message.send_handshake(sock, self.info_hash, self.peer_id)
         
         print(f'Client {client_ip}:{client_port} has {bitfield_response["pieces"]}')
@@ -275,8 +264,6 @@ class TorrentClient:
                 print("-----------------o0o-----------------")
 
             print(f"Downloaded piece {piece_index} from {client_ip}:{client_port}")
-            # Delay 0.5 giây để dễ theo dõi
-            # time.sleep(0.5)
             print("-----------------o0o-----------------")
             
             with self.lock:
@@ -309,7 +296,6 @@ class TorrentClient:
         server_socket.bind(("", port))
         server_socket.listen(5)  # Lắng nghe tối đa 5 kết nối
         
-        # print(f"Seeding server is listening on port : {port}...")
         print(f"Seeding server is listening on : {ip_address}:{port}...")
         try:
             while not self.stop_flag.is_set():
@@ -334,7 +320,7 @@ class TorrentClient:
             print("Server stopped")
 
     def upload(self, input_file_path):
-        server_thread = threading.Thread(target=self.start_seeding_server, args=(upload_port, input_file_path))
+        server_thread = threading.Thread(target=self.start_seeding_server, args=(local_port, input_file_path))
         server_thread.start()
         
         try:
@@ -379,8 +365,6 @@ class TorrentClient:
                 piece_end = piece_begin + length
                 seed.send_piece(socket, piece_index, offset, input_file_data[piece_begin:piece_end])
                 print("-----------------o0o-----------------")
-                # Cooldown 0.5 giây để theo dõi
-                # time.sleep(0.5)
     
         return  # Ngừng seed với peer đang kết nối
 
@@ -390,7 +374,7 @@ class TorrentClient:
         # Lấy địa chỉ IP của máy chủ
         local_ip = socket.gethostbyname(hostname)
         
-        tracker_response = self.connect_to_tracker('started', local_ip, 6881, 0, 0, self.file_length)
+        tracker_response = self.connect_to_tracker('started', local_ip, local_port, 0, 0, self.file_length)
         if tracker_response is None:
             raise Exception("Tracker didn't response")
         # print(tracker_response)
@@ -404,11 +388,6 @@ class TorrentClient:
             self.connect_to_tracker('stopped', ip, port, 0, 0, 0)
 
 if __name__ == '__main__':
-    # Nhập cổng sẽ sử dụng khi upload/seed
-    while upload_port not in range(49123, 60999):
-        usr_inp = input('Enter upload port (49123, 60999): ')
-        upload_port = int(usr_inp)
-        
     # Create mandatory directory
     if not os.path.exists("./torrent"): 
         os.makedirs("./torrent")
@@ -473,7 +452,8 @@ if __name__ == '__main__':
             input_name = arguments[1]
             input_path = os.path.join("./seeds", input_name)
             torrent_name = arguments[2]
-            tracker_url = "http://10.128.28.179:8080/announce"
+            tracker_url = "http://192.168.31.130:8080/announce"
+            # tracker_url = "http://10.128.28.179:8080/announce"
             if len(arguments) == 4:
                 tracker_url = arguments[3]
             if len(arguments) > 4:

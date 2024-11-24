@@ -5,6 +5,9 @@ import bencodepy
 
 # Lưu thông tin các peer
 swarm = {}
+# Tracker IP
+# TRACKER_IP = "10.128.28.179"      # Mạng LAN khi ở HCMUT
+TRACKER_IP = "192.168.31.130"
 
 class TorrentTrackerHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -25,6 +28,7 @@ class TorrentTrackerHandler(http.server.SimpleHTTPRequestHandler):
         info_hash = query_params.get('info_hash', [None])[0]
         peer_id = query_params.get('peer_id', [None])[0]
         port = query_params.get('port', [None])[0]
+        compact = query_params.get('compact', [None])[0]
         event = query_params.get('event', [None])[0]
         ip = query_params.get('ip', [None])[0]          # Dùng để lấy IP parse từ bên gửi nếu có
 
@@ -46,28 +50,25 @@ class TorrentTrackerHandler(http.server.SimpleHTTPRequestHandler):
         if peer_info not in swarm[info_hash]:
             if event == "started":
                 swarm[info_hash].append(peer_info)
-            elif event == "completed":
-                swarm[info_hash].remove(peer_info)
             elif event == "stopped":
                 swarm[info_hash].remove(peer_info)
 
         # Tạo danh sách peer
         peer_list = b''
-        for peer in swarm[info_hash]:
-            peer_ip = socketserver.socket.inet_aton(peer['ip'])
-            peer_port = int(peer['port']).to_bytes(2, 'big')        # Port dưới dạng 2 byte
-            peer_list += peer_ip + peer_port
+        if compact == 1:
+            for peer in swarm[info_hash]:
+                peer_ip = socketserver.socket.inet_aton(peer['ip'])
+                peer_port = int(peer['port']).to_bytes(2, 'big')        # Port dưới dạng 2 byte
+                peer_list += peer_ip + peer_port
         
         # Phản hồi theo định dạng bencode
         response = {
+            b'complete': 0,         # Tạm thời
+            b'incomplete': 0,       # Tạm thời
             b'interval': 1800,      # Thời gian cho peer gửi lại yêu cầu (30 phút)
             b'peers': peer_list     # Danh sách peer
         }
         
-        peer_info = {'peer_id': peer_id, 'ip': ip, 'port': port}
-        if peer_info not in swarm[info_hash]:
-            swarm[info_hash].append(peer_info)
-
         # Trả danh sách các peer trong swarm (theo định dạng bencode)
         self.send_response(200)
         self.send_header('Content-Type', 'text/plain')  # Bencode là văn bản thuần
@@ -77,8 +78,8 @@ class TorrentTrackerHandler(http.server.SimpleHTTPRequestHandler):
 # Chạy server trên port 8080
 def run_tracker():
     PORT = 8080
-    with socketserver.TCPServer(("10.128.28.179", PORT), TorrentTrackerHandler) as httpd:
-        print(f"Tracker is running at http://10.128.28.179:{PORT}")
+    with socketserver.TCPServer((TRACKER_IP, PORT), TorrentTrackerHandler) as httpd:
+        print(f"Tracker is running at http://{TRACKER_IP}:{PORT}")
         httpd.serve_forever()
 
 if __name__ == "__main__":

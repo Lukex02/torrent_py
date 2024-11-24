@@ -28,7 +28,10 @@ class TorrentTrackerHandler(http.server.SimpleHTTPRequestHandler):
         info_hash = query_params.get('info_hash', [None])[0]
         peer_id = query_params.get('peer_id', [None])[0]
         port = query_params.get('port', [None])[0]
-        compact = query_params.get('compact', [None])[0]
+        uploaded = query_params.get('uploaded', [None])[0]
+        downloaded = query_params.get('downloaded', [None])[0]
+        left = query_params.get('left', [None])[0]
+        compact = int(query_params.get('compact', [None])[0])
         event = query_params.get('event', [None])[0]
         ip = query_params.get('ip', [None])[0]          # Dùng để lấy IP parse từ bên gửi nếu có
 
@@ -42,29 +45,47 @@ class TorrentTrackerHandler(http.server.SimpleHTTPRequestHandler):
         if ip is None:
             ip = self.client_address[0]
 
-        # Thêm peer vào swarm
         if info_hash not in swarm:
-            swarm[info_hash] = []
+            swarm[info_hash] = {}
+            swarm[info_hash]['downloaded'] = 0
+            swarm[info_hash]['peers'] = []
 
+        # Thêm peer vào swarm
         peer_info = {'peer_id': peer_id, 'ip': ip, 'port': int(port)}
-        if peer_info not in swarm[info_hash]:
-            if event == "started":
-                swarm[info_hash].append(peer_info)
-            elif event == "stopped":
-                swarm[info_hash].remove(peer_info)
+        # Thêm peer vào list hoạt động chỉ khi peer không có sẵn và gửi có event = started
+        if peer_info not in swarm[info_hash]['peers'] and event == "started":
+            print("-----Adding peer to list...")
+            swarm[info_hash]['peers'].append(peer_info)
+        
+        # Loại peer khỏi list hoạt động chỉ khi peer có sẵn và gửi có event = stopped
+        if peer_info in swarm[info_hash]['peers'] and event == "stopped":
+            print("-----Removing peer from list...")
+            swarm[info_hash]['peers'].remove(peer_info)
 
-        # Tạo danh sách peer
-        peer_list = b''
+        # Thêm số "downloaded" nếu peer có sẵn và gửi có event = completed
+        if peer_info in swarm[info_hash]['peers'] and event == "completed":
+            print("-----Increasing downloaded peer...")
+            swarm[info_hash]['downloaded']+=1
+
+        # Tạo danh sách peer đang hoạt động từ swarm compact = 1
         if compact == 1:
-            for peer in swarm[info_hash]:
+            peer_list = b''
+            for peer in swarm[info_hash]['peers']:
                 peer_ip = socketserver.socket.inet_aton(peer['ip'])
                 peer_port = int(peer['port']).to_bytes(2, 'big')        # Port dưới dạng 2 byte
                 peer_list += peer_ip + peer_port
+        elif compact == 0:
+            peer_list = []
+            for peer in swarm[info_hash]['peers']:
+                peer_list.append(peer)
         
+        # Lấy số đã download dựa trên thông tin từ seeder và downloader đã download thành công
+        complete_download = swarm[info_hash]['downloaded']
+
         # Phản hồi theo định dạng bencode
         response = {
-            b'complete': 0,         # Tạm thời
-            b'incomplete': 0,       # Tạm thời
+            b'complete': complete_download,
+            b'incomplete': 0,       # Vì số leechers khó thống kê và không quan trọng
             b'interval': 1800,      # Thời gian cho peer gửi lại yêu cầu (30 phút)
             b'peers': peer_list     # Danh sách peer
         }

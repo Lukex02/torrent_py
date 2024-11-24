@@ -203,7 +203,8 @@ class TorrentClient:
             
         for thread in self.download_threads:
             thread.join()
-        
+
+        self.connect_to_tracker('completed', local_ip, port, 0, self.downloaded, 0)
         self.connect_to_tracker('stopped', local_ip, local_port, 0, self.downloaded, 0)
 
         if isinstance(self.name, list):
@@ -289,6 +290,7 @@ class TorrentClient:
         # Lấy địa chỉ IP của máy tính
         ip_address = socket.gethostbyname(hostname)
         self.connect_to_tracker('started', ip_address, port, 0, 0, 0)
+        self.connect_to_tracker('completed', ip_address, port, 0, self.file_length, 0)
         
         # Tạo socket server
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -315,7 +317,7 @@ class TorrentClient:
             for thread in self.upload_threads:
                 thread.join()  # Wait for all threads to finish
                 
-            self.connect_to_tracker('stopped', ip_address, port, 0, 0, 0)
+            self.connect_to_tracker('stopped', ip_address, port, self.file_length, 0, 0)
             server_socket.close()
             print("Server stopped")
 

@@ -6,43 +6,17 @@
 
 Chức năng đã hiện thực có thể dùng được:
 
-- Tạo 1 file torrent
+- Tạo 1 file torrent (từ 1 file lẫn 1 folder nhiều file)
 - Gửi HTTP GET tới tracker
 - Kết nối với peer
 - Seed/Chia sẻ 1 file
 - Tải về 1 file
 - Kết nối với peer qua mạng LAN
 - Tải 1 thư mục nhiều file (tạo torrent từ cả thư mục)
-
-Chức năng còn thiếu:
-
-- Kết nối với peer thông qua IP mà tracker trả về
-- UI thể hiện trạng thái rõ ràng dễ theo dõi
-
-Chức năng chưa thử nghiệm (khả năng cao là còn thiếu)
-
-- Kết nối peer qua mạng khác nhau
 - Multithread kết nối nhiều peer cùng lúc
 - Tải từ nhiều peer
-- Seed cho nhiều peer (thật ra code cơ chế seed hiện tại là trên lý thuyết có thể thực hiện được vì đang ở vòng `while True` request rồi gửi piece)
-
-#### Idea của nhiều peer:
-
-- Tạo multi thread
-- Sync các thread
-- Có thể cần dùng máy ảo (virtual machine) để test > 2 peer
-- Thêm cái gì đó để lưu lịch sử đã tải (piece_index của piece đã download) để không phải request trùng
-- Có thể test tải multi thread cho cùng 1 peer (for testing purpose only)
-
-#### _Chức năng có thể không cần thiết_
-
-- _Sau khi tải về có thể `send message have` để báo mình có mảnh nào đó_
-- _Nếu có `send message have` thì cần thêm `handle message have`_
-- _`Handle message have`: Có thể dùng cái `peer.receive_message()`_
-
-Chức năng không sử dụng được:
-
-- DHT (sử dụng libtorrent không dùng cho window được, và cũng không/chưa tìm được peer)
+- Seed cho nhiều peer
+- Kết nối với peer thông qua IP mà tracker trả về (trong 1 trường hợp cấu hình tracker và docker cụ thể)
 
 ## Cài đặt thư viện trước khi chạy
 
@@ -50,20 +24,11 @@ Chức năng không sử dụng được:
 
 ## Cách chạy
 
-Đầu tiên có thể chạy:
-
-`python main.py help`
+`python main.py`
 
 hoặc:
 
-`python3 main.py help`
-
-để xem những lệnh có thể chạy và những thông tin cần thiết
-
-## Quy tắc làm việc
-
-1. Clone repository ra, sync nó lên github desktop hay download zip gì đó về tự vọc trên máy local
-2. Submit thì tạo branch mới từ cái đống trên máy local, pull request, assign chủ repo làm reviewer
+`python3 main.py`
 
 ## Reference
 

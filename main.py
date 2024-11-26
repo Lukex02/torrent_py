@@ -53,6 +53,8 @@ def rename_download_folder(new_file_list, file_length_list):
                 offset += file_length_list[index]
                 path = root_path
                 index += 1
+    
+    os.remove(new_file_list[0] + ".temp")
 
 # Kết hợp file để share folder
 def combine_files(file_list):
@@ -93,7 +95,6 @@ class TorrentClient:
         self.num_pieces = piece.get_num_pieces(self.torrent_data[b'info'])
         self.length_list = []
         self.file_length = self.calculate_file_size()
-        print(self.name)
     
     def load_torrent_file(self, torrent_file):
         with open(torrent_file, 'rb') as f:
@@ -243,14 +244,15 @@ class TorrentClient:
                 # Vì request luôn luôn là 1 piece giống nhau trừ piece cuối luôn nhỏ hơn
                 requested_piece_size = self.file_length % self.piece_length 
             else:
-                print(f"Asking for 1 piece from {client_ip}:{client_port}...")
+                print(f"Asking for whole piece...")
                 requested_piece_size = self.piece_length
             # Bắt đầu vào quá trình gửi request cho piece số <piece_index>
-            print("Sending request piece:", piece_index)
+            print(f"Sending request piece: {piece_index} to {client_ip}:{client_port}")
             
             # Request piece theo từng block BLOCK_SIZE (16KB)
             piece_data = b''
             piece_offset = 0
+            print("----------------^^^^^-----------------")
             while len(piece_data) < requested_piece_size:
                 request_block = BLOCK_SIZE
                 remaining_data = requested_piece_size - len(piece_data)

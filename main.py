@@ -15,8 +15,9 @@ import message
 import piece
 import seed
 
-OUTPUT_FILE = 'output.temp'         # Tên tệp đầu ra sau khi tải xong
 BLOCK_SIZE = 16 * 1024  # 16KB      # Kích cỡ 1 block
+tracker_url = "http://192.168.31.130:8080/announce"
+# tracker_url = "http://10.128.28.179:8080/announce"
 local_port = random.randint(49123, 60999)
 
 # Decode file đã download 
@@ -454,8 +455,7 @@ if __name__ == '__main__':
             input_name = arguments[1]
             input_path = os.path.join("./seeds", input_name)
             torrent_name = arguments[2]
-            tracker_url = "http://192.168.31.130:8080/announce"
-            # tracker_url = "http://10.128.28.179:8080/announce"
+            
 
             torrent_path = os.path.join("./torrent", torrent_name)
 

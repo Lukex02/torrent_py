@@ -1,4 +1,3 @@
-import bencodepy
 import hashlib
 import requests
 import socket
@@ -9,6 +8,7 @@ import threading
 import time
 import os
 
+import bencode
 import makeTorrent
 import peer
 import message
@@ -53,7 +53,7 @@ def rename_download_folder(new_file_list, file_length_list):
                 path = root_path
                 index += 1
 
-# Kết hợp file để làm torrent cho folder
+# Kết hợp file để share folder
 def combine_files(file_list):
     root_path = "./seeds/" + file_list[0]
     path = root_path
@@ -95,10 +95,10 @@ class TorrentClient:
     
     def load_torrent_file(self, torrent_file):
         with open(torrent_file, 'rb') as f:
-            return bencodepy.decode(f.read())
+            return bencode.ben_decode(f.read())
 
     def calculate_info_hash(self):
-        info = bencodepy.encode(self.torrent_data[b'info'])
+        info = bencode.ben_encode(self.torrent_data[b'info'])
         return hashlib.sha1(info).digest()
 
     def calculate_file_size(self):
@@ -157,7 +157,7 @@ class TorrentClient:
         if response.status_code != 200:
             print("Failed to connect to tracker")
             return None
-        return bencodepy.decode(response.content)
+        return bencode.ben_decode(response.content)
     
     def get_peers(self, tracker_response):
         peers = tracker_response[b'peers']
@@ -446,7 +446,7 @@ if __name__ == '__main__':
             print("------Closed Upload!")
             print("---------///////---------")
 
-        # python main.py maketor <input_path> <torrent_name> <optional|tracker_url>
+        # python main.py maketor <input_path> <torrent_name>
         elif arguments[0] == "maketor":
             if len(arguments) < 3:
                 print("Missing argumnent for maketor")
@@ -456,15 +456,14 @@ if __name__ == '__main__':
             torrent_name = arguments[2]
             tracker_url = "http://192.168.31.130:8080/announce"
             # tracker_url = "http://10.128.28.179:8080/announce"
-            if len(arguments) == 4:
-                tracker_url = arguments[3]
-            if len(arguments) > 4:
-                for i in len(arguments) - 4:
-                    tracker_url[i] = arguments[len(arguments) - 1 + i]
-            
+
             torrent_path = os.path.join("./torrent", torrent_name)
 
-            makeTorrent.create_torrent(input_path, tracker_url, torrent_path)
+            if '.' in input_name:
+                makeTorrent.create_torrent_single(input_path, tracker_url, torrent_path)
+            else:
+                makeTorrent.create_torrent_multi(input_path, tracker_url, torrent_path)
+            
             print("---------///////---------")
             print("------Make torrent completed!")
             print("---------///////---------")

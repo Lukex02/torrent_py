@@ -4,7 +4,7 @@ def ben_encode(data):
     elif isinstance(data, bytes):
         return f"{len(data)}:".encode() + data
     elif isinstance(data, str):
-        return f"{len(data)}:".encode() + data.encode()
+        return f"{len(data.encode('utf-8'))}:".encode() + data.encode()
     elif isinstance(data, list):
         return b"l" + b"".join(ben_encode(item) for item in data) + b"e"
     elif isinstance(data, dict):
@@ -49,7 +49,6 @@ def ben_decode(data):
         return result, index + 1
 
     def decode(index):
-        # print(f"Data index: {data[index]} at index {index}")
         if data[index] == ord(b'i'):  
             return decode_int(index)
         elif data[index] == ord(b'l'):

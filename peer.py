@@ -18,7 +18,7 @@ def connect_to_peer(peer_ip, peer_port):
 def receive_message(sock):
     # Đọc và phân tích message từ peer
     response = sock.recv(1024)  # Giới hạn kích thước nhận
-    # response = sock.recv(max_size)  # Giới hạn kích thước nhận
+
     if len(response) >= 5:
         length = struct.unpack('>I', response[:4])[0]
         message_id = struct.unpack('>B', response[4:5])[0]

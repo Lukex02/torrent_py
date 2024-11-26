@@ -10,8 +10,7 @@ def connect_to_peer(peer_ip, peer_port):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         s.connect((peer_ip, peer_port)) # Kết nối tới peer
         print(f"Connected to {peer_ip}:{peer_port}")
-        local_ip, local_port = s.getsockname()
-        return s, local_ip, local_port
+        return s
     except socket.error as e:
         print(f"Connection to {peer_ip}:{peer_port} failed with error: {e}")
         return None, None, None

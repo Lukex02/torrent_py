@@ -193,11 +193,11 @@ class TorrentClient:
         for ip, port in peers:
             print(f"Connecting to peer {ip}:{port}...")
             # Kết nối với peer thử, nếu không thành công thì sẽ không tạo thread
-            sock, client_ip, client_port = peer.connect_to_peer(ip, port)
+            sock = peer.connect_to_peer(ip, port)
             
             if sock is not None:
                 # Phân tích peer để tạo số lượng thread
-                downloader_thread = threading.Thread(target=self.download_from_peer, args=(sock, client_ip, client_port, output))
+                downloader_thread = threading.Thread(target=self.download_from_peer, args=(sock, ip, port, output))
                 downloader_thread.start()
                 self.download_threads.append(downloader_thread)
             

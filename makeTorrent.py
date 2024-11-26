@@ -5,13 +5,16 @@ import bencode
 def get_piece_length(file_size):
     # Nếu file lớn hơn 5 MB thì chọn piece length là 512 KB
     if file_size > 5 * 1024 * 1024:
-        piece_length = 512 * 1024       #512 KB
+        piece_length = 512 * 1024           #512 KB
     # Nếu từ 1 - 5 MB thì piece length chọn 128 KB
     elif file_size > 1024 * 1024:
-        piece_length = 128 * 1024       #128 KB
-    # Nhỏ hơn 1 MB chọn 64 KB
+        piece_length = 256 * 1024           #256 KB
+    # Nhỏ hơn 1 MB lớn hơn 256 KB chọn 128 KB
+    elif file_size > 256 * 1024:
+        piece_length = 128 * 1024           #128 KB
+    # Nhỏ hơn 128 KB thì chọn 64 KB
     else:
-        piece_length = 64 * 1024        #64 KB
+        piece_length = 64 * 1024            #64 KB
     return piece_length
 
 def generate_pieces(file_path, piece_length):
@@ -55,11 +58,17 @@ def create_torrent_single(input_path, tracker_url, output_file):
     print(f"Torrent file created at: {output_file}")
 
 def hash_pieces_folder(file_paths, piece_length):
+    total_chunk = b""
     pieces = b""
+    # Tổng hợp tất cả dữ liệu theo byte lại, sau đó chia theo hash 20 byte
     for file_path in file_paths:
         with open(file_path, "rb") as f:
             while chunk := f.read(piece_length):
-                pieces += hashlib.sha1(chunk).digest()
+                total_chunk += chunk
+    # hashlib.sha1(total_chunk[:20]).digest()
+    # Kết hợp pieces lại theo kích thước hash 20 bytes
+    for i in range(0, len(total_chunk), piece_length):
+        pieces += hashlib.sha1(total_chunk[i:i+piece_length]).digest()
     return pieces
 
 def create_torrent_multi(folder_path, tracker_url, output_file):

@@ -93,6 +93,7 @@ class TorrentClient:
         self.num_pieces = piece.get_num_pieces(self.torrent_data[b'info'])
         self.length_list = []
         self.file_length = self.calculate_file_size()
+        print(self.name)
     
     def load_torrent_file(self, torrent_file):
         with open(torrent_file, 'rb') as f:

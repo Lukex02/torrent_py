@@ -462,7 +462,7 @@ if __name__ == '__main__':
             if len(arguments) != 1:
                 print("Wrong argument...")
                 continue
-            print("Available commands:")
-            print("Download: download <torrent_name stored in /torrent>.torrent")
-            print("Upload: upload <torrent_name stored in /torrent>.torrent <input_file_name stored in /seeds>")
-            print("Make torrent: maketor <input_file stored in /seeds> <torrent_name>")            
+            print("-$$$-Available commands:")
+            print("-    Download: download <torrent_name stored in /torrent>.torrent")
+            print("-    Upload: upload <torrent_name stored in /torrent>.torrent")
+            print("-    Make torrent: maketor <input_file stored in /seeds> <torrent_name>")            

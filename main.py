@@ -384,11 +384,11 @@ if __name__ == '__main__':
         os.makedirs("./download")
 
     usr_inp = input('Enter default tracker url for make torrent (http://192.168.31.130:8080/announce):')
-    if usr_inp is not None:
+    if usr_inp != "":
         tracker_url= usr_inp
 
     while True:
-        usr_inp = input('Enter your command ("help" to see all commands):')
+        usr_inp = input('Enter your command ("help" to see all commands, "exit" to close app):')
         if usr_inp.lower() == "exit":
             break
         arguments = usr_inp.split()

@@ -383,7 +383,7 @@ if __name__ == '__main__':
     if not os.path.exists("./download"): 
         os.makedirs("./download")
 
-    usr_inp = input('Enter tracker url (http://192.168.31.130:8080/announce):')
+    usr_inp = input('Enter default tracker url for make torrent (http://192.168.31.130:8080/announce):')
     if usr_inp is not None:
         tracker_url= usr_inp
 

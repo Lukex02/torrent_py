@@ -99,6 +99,9 @@ class TorrentTrackerHandler(http.server.SimpleHTTPRequestHandler):
 # Chạy server trên port 8080
 def run_tracker():
     PORT = 8080
+    usr_inp = input('Enter your IP for tracker:')
+    if usr_inp is not None:
+        TRACKER_IP= usr_inp
     with socketserver.TCPServer((TRACKER_IP, PORT), TorrentTrackerHandler) as httpd:
         print(f"Tracker is running at http://{TRACKER_IP}:{PORT}")
         httpd.serve_forever()

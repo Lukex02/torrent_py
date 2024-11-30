@@ -1,3 +1,0 @@
-hello world
-hello world 123
-world_hello

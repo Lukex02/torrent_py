@@ -382,6 +382,11 @@ if __name__ == '__main__':
         os.makedirs("./seeds")
     if not os.path.exists("./download"): 
         os.makedirs("./download")
+
+    usr_inp = input('Enter tracker url (http://192.168.31.130:8080/announce):')
+    if usr_inp is not None:
+        tracker_url= usr_inp
+
     while True:
         usr_inp = input('Enter your command ("help" to see all commands):')
         if usr_inp.lower() == "exit":

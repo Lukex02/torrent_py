@@ -12,7 +12,7 @@ def get_piece_length(file_size):
     # Nhỏ hơn 1 MB lớn hơn 256 KB chọn 128 KB
     elif file_size > 256 * 1024:
         piece_length = 128 * 1024           #128 KB
-    # Nhỏ hơn 128 KB thì chọn 64 KB
+    # Nhỏ hơn 256 KB thì chọn 64 KB
     else:
         piece_length = 64 * 1024            #64 KB
     return piece_length
@@ -35,16 +35,14 @@ def create_torrent_single(input_path, tracker_url, output_file):
     # Tính toán các mảnh (pieces)
     pieces = generate_pieces(input_path, piece_length)
     
-    info = {
-        "name": file_name,
-        "piece length": piece_length,
-        "length": file_size,
-        "pieces": pieces,
-    }
-    
     torrent = {
         "announce": tracker_url,
-        "info": info
+        "info": {
+            "name": file_name,
+            "piece length": piece_length,
+            "length": file_size,
+            "pieces": pieces,
+        }
     }
     
     torrent_data = bencode.ben_encode(torrent)
@@ -65,7 +63,7 @@ def hash_pieces_folder(file_paths, piece_length):
         with open(file_path, "rb") as f:
             while chunk := f.read(piece_length):
                 total_chunk += chunk
-    # hashlib.sha1(total_chunk[:20]).digest()
+
     # Kết hợp pieces lại theo kích thước hash 20 bytes
     for i in range(0, len(total_chunk), piece_length):
         pieces += hashlib.sha1(total_chunk[i:i+piece_length]).digest()

@@ -374,25 +374,6 @@ class TorrentClient:
     
         return  # Ngừng seed với peer đang kết nối
 
-    def force_stopped_all(self):
-        # Lấy tên máy chủ
-        hostname = socket.gethostname()
-        # Lấy địa chỉ IP của máy chủ
-        local_ip = socket.gethostbyname(hostname)
-        
-        tracker_response = self.connect_to_tracker('started', local_ip, local_port, 0, 0, self.file_length)
-        if tracker_response is None:
-            raise Exception("Tracker didn't response")
-        # print(tracker_response)
-        
-        peers = self.get_peers(tracker_response)
-        print(f"Found {len(peers)} peers from tracker.")
-        
-        # Connect to peer
-        for ip, port in peers:
-            print(f"Sent 'stopped' for peer {ip}:{port}...")
-            self.connect_to_tracker('stopped', ip, port, 0, 0, 0)
-
 if __name__ == '__main__':
     # Create mandatory directory
     if not os.path.exists("./torrent"): 
@@ -479,13 +460,4 @@ if __name__ == '__main__':
             print("Available commands:")
             print("Download: download <torrent_name stored in /torrent>.torrent")
             print("Upload: upload <torrent_name stored in /torrent>.torrent <input_file_name stored in /seeds>")
-            print("Make torrent: maketor <input_file stored in /seeds> <torrent_name> <optional|tracker_url>")
-        elif arguments[0] == "stop_all":
-            if len(arguments) != 2:
-                print("Wrong argument...")
-                continue
-            torrent_name = arguments[1]
-            torrent_file = os.path.join("./torrent", torrent_name)
-            client = TorrentClient(torrent_file)
-            client.force_stopped_all()
-            
+            print("Make torrent: maketor <input_file stored in /seeds> <torrent_name>")            

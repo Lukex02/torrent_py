@@ -1,7 +1,7 @@
 import http.server
 import socketserver
 import urllib.parse as urlparse
-import bencodepy
+import bencode
 
 # Lưu thông tin các peer
 swarm = {}
@@ -94,7 +94,7 @@ class TorrentTrackerHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-Type', 'text/plain')  # Bencode là văn bản thuần
         self.end_headers()
-        self.wfile.write(bencodepy.encode(response))
+        self.wfile.write(bencode.ben_encode(response))
 
 # Chạy server trên port 8080
 def run_tracker():
